@@ -541,7 +541,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     if step % RECORDING_STEP == 0:
 
                         summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_all_prediction],
+                            [summary_op, optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, step)
