@@ -1,4 +1,4 @@
-*.png
-Road Segmentation/predictions_training/overlay_10.png
+
 *.meta
-*.data-00000-of-00001
+*.index
+*.png

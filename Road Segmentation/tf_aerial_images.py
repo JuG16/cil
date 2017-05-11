@@ -22,10 +22,10 @@ import tensorflow as tf
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+IMPORT_SIZE = 100 #validation_size is subtracted afterwards
 VALIDATION_SIZE = 10  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
-BATCH_SIZE = 5 # 64
+BATCH_SIZE = 10 # 64
 NUM_EPOCHS = 100
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 6
@@ -189,14 +189,14 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_filename = data_dir + 'groundtruth/' 
 
     # Extract it into np arrays.
-    train_data = extract_data(train_data_filename, TRAINING_SIZE)
-    train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+    train_data = extract_data(train_data_filename, IMPORT_SIZE)
+    train_labels = extract_labels(train_labels_filename, IMPORT_SIZE)
 
     #split data into validation and train data (not random!)
     validation_data = train_data[0:VALIDATION_SIZE]
     validation_labels = train_labels[0:VALIDATION_SIZE]
-    train_data = train_data[VALIDATION_SIZE:TRAINING_SIZE]
-    train_labels = train_labels[VALIDATION_SIZE:TRAINING_SIZE]
+    train_data = train_data[VALIDATION_SIZE:IMPORT_SIZE]
+    train_labels = train_labels[VALIDATION_SIZE:IMPORT_SIZE]
 
     train = tf.placeholder(tf.bool, name="train")
 
@@ -348,10 +348,13 @@ def main(argv=None):  # pylint: disable=unused-argument
         else:
             shuffled_samples = data
             shuffled_labels = labels
-        for batch_idx in range(0, data_size-batch_size, batch_size):
-            batch_samples = shuffled_samples[batch_idx:batch_idx + batch_size]
-            batch_labels = shuffled_labels[batch_idx:batch_idx + batch_size]
-            yield batch_samples, batch_labels
+        if data_size == batch_size:
+            yield shuffled_samples, shuffled_labels
+        else:
+            for batch_idx in range(0, data_size-batch_size, batch_size):
+                batch_samples = shuffled_samples[batch_idx:batch_idx + batch_size]
+                batch_labels = shuffled_labels[batch_idx:batch_idx + batch_size]
+                yield batch_samples, batch_labels
 
     # Get a concatenation of the prediction and groundtruth for given input file
     def get_prediction_with_groundtruth(filename, image_idx):
@@ -427,7 +430,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         # Add a 50% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
         
-        hidden = tf.layers.dropout(inputs=hidden, rate=0.5, training=train)
+        hidden = tf.layers.dropout(inputs=hidden, rate=0.75, training=train)
 
         out = tf.matmul(hidden, fc2_weights) + fc2_biases
 
@@ -517,6 +520,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 training_batches = data_iterator(train_data, train_labels, BATCH_SIZE)
                 # Training loop.
                 for batch_data, batch_labels in training_batches:
+                    print("Batch data shape: " + str(batch_data.shape))
 
                     step = tf.train.global_step(s, global_step)
                     # Compute the offset of the current minibatch in the data.
@@ -532,19 +536,22 @@ def main(argv=None):  # pylint: disable=unused-argument
                         # Calculate average validation accuracy.
                         (loss_avg_value_validation, accuracy_avg_value_validation) = do_evaluation(s, validation_data, validation_labels)
 
-                        print("[%d/%d] [Validation] Accuracy: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, loss_avg_value_validation))
+                        print("[%d/%d] [Validation] Error: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, loss_avg_value_validation))
 
                     if step % RECORDING_STEP == 0:
 
                         summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_prediction],
+                            [summary_op, optimizer, loss, learning_rate, train_all_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, step)
                         summary_writer.flush()
 
+
+                        print("Predictions shape: " + str(predictions.shape))
+
                         # print_predictions(predictions, batch_labels)
-                        print("[%d/%d] [Training] Accuracy: %.3f, Loss: %.3f" % (epoch, step, error_rate(predictions,batch_labels), l))
+                        print("[%d/%d] [Training] Error: %.3f, Loss: %.3f" % (epoch, step, error_rate(predictions,batch_labels), l))
                         #print ('Epoch %.2f' % (epoch + float(step) * BATCH_SIZE / train_size))
                         #print ('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
                         #print ('Minibatch error: %.1f%%' % error_rate(predictions,
@@ -566,7 +573,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         prediction_training_dir = "predictions_training/"
         if not os.path.isdir(prediction_training_dir):
             os.mkdir(prediction_training_dir)
-        for i in range(1, TRAINING_SIZE+1):
+        for i in range(1, IMPORT_SIZE+1):
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
             Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
             oimg = get_prediction_with_overlay(train_data_filename, i)
