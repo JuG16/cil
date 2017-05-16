@@ -13,6 +13,9 @@ import matplotlib.pyplot as plt
 sateliteImages = np.zeros((100,400,400,3))
 sateliteImages = sateliteImages.astype(np.uint8)
 
+GTImages = np.zeros((100,400,400))
+GTImages = GTImages.astype(np.uint8)
+
 for i in range (1, 101):
     zeros = ''
     if(i < 10):
@@ -24,6 +27,14 @@ for i in range (1, 101):
     image = misc.imread(path)
     sateliteImages[i-1] = image
     sateliteImages[i-1].astype(np.uint8)
+    
+    path = "./training/groundtruth/satImage_"+zeros+ str(i) +".png"
+    print(path)
+    image = misc.imread(path)
+    GTImages[i-1] = image
+    GTImages[i-1].astype(np.uint8)
+    
+    
 print(sateliteImages.shape)
 
 #%%
@@ -132,15 +143,119 @@ augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
 
 # per image, take 2 random parts, sized 200x200
 
+def getRandomImagePartAsNewImage(inputImage):
+    cropStartX = np.floor(200*np.random.rand(1)[0]).astype(np.uint8)
+    cropStartY = np.floor(200*np.random.rand(1)[0]).astype(np.uint8)
+    if(len(GTImages[-1,:,:].shape) > 2):
+        im = inputImage[cropStartX:cropStartX+200,cropStartY:cropStartY+200,:]
+    else:
+        im = inputImage[cropStartX:cropStartX+200,cropStartY:cropStartY+200]        
+    im = np.repeat(np.repeat(im,2, axis=0), 2, axis=1)
+    
+    return im
+
+#%%
+
+
 counter = 1600
 
 for i in range(0, 1600):
     for j in range(0,2):
-        cropStartX = np.floor(200*np.random.rand(1)[0]).astype(np.uint8)
-        cropStartY = np.floor(200*np.random.rand(1)[0]).astype(np.uint8)
         
-        im = augmentedImages[i,cropStartX:cropStartX+200,cropStartY:cropStartY+200,:]
-        im = np.repeat(np.repeat(im,2, axis=0), 2, axis=1)
-        augmentedImages[counter] = im
+        augmentedImages[counter] = getRandomImagePartAsNewImage(augmentedImages[i,:,:,:])
         counter = counter + 1
 
+
+#%%
+
+# returns tupels with coordinates where the road segment starts, and ends. additional there are 2 numbers indicating which side of the image the road is.
+# 0 , 0 is the top of the image
+# 0 , 1 is the bottom of the image
+# 1 , 0 is the left side of the image
+# 1 , 1 is the right side of the image
+
+
+def findStreets(image):
+    foundRoad = False
+    
+    roads = set()
+    
+    for i in range(0, image.shape[0]):
+        if(image[0, i] >= 10 and not foundRoad):
+            roadStartCoord = i
+            foundRoad = True
+        else:
+            if(foundRoad and image[0, i] < 10):
+                foundRoad = False
+                roadEndCoord = i
+                roads.add((roadStartCoord, roadEndCoord, 0 , 0))
+                
+    if(foundRoad and i == image.shape[0]-1):
+        foundRoad = False
+        roadEndCoord = i
+        print('adding option 2')
+        roads.add((roadStartCoord, roadEndCoord, 0 , 0))
+
+    for i in range(0, image.shape[0]):
+        if(image[image.shape[0]-1, i] >= 10 and not foundRoad):
+            roadStartCoord = i
+            foundRoad = True
+        else:
+            if(foundRoad and image[image.shape[0]-1, i] < 10):
+                foundRoad = False
+                roadEndCoord = i
+                roads.add((roadStartCoord, roadEndCoord, 0 , 1))
+                
+    if(foundRoad and i == image.shape[0]-1):
+        foundRoad = False
+        roadEndCoord = i
+        roads.add((roadStartCoord, roadEndCoord, 0 , 1))
+        
+    
+    for i in range(0, image.shape[1]):
+        if(image[i, 0] >= 10 and not foundRoad):
+            roadStartCoord = i
+            foundRoad = True
+        else:
+            if(foundRoad and image[i, 0] < 10):
+                foundRoad = False
+                roadEndCoord = i
+                roads.add((roadStartCoord, roadEndCoord, 1 , 0))
+                
+    if(foundRoad and i == image.shape[0]-1):
+        foundRoad = False
+        roadEndCoord = i
+        roads.add((roadStartCoord, roadEndCoord, 1 , 0))
+
+    for i in range(0, image.shape[0]):
+        if(image[i, image.shape[1]-1] >= 10 and not foundRoad):
+            roadStartCoord = i
+            foundRoad = True
+        else:
+            if(foundRoad and image[i, image.shape[1]-1] < 10):
+                foundRoad = False
+                roadEndCoord = i
+                roads.add((roadStartCoord, roadEndCoord, 1 , 1))
+                
+    if(foundRoad and i == image.shape[0]-1):
+        foundRoad = False
+        roadEndCoord = i
+        roads.add((roadStartCoord, roadEndCoord, 1 , 1))
+        
+    return roads
+
+
+
+#%%
+test = getRandomImagePartAsNewImage(GTImages[-1,:,:])
+
+
+plt.imshow(test)
+plt.show()
+
+s = findStreets(test)
+print(s)
+
+#%%
+
+print(test[0,132:210])
