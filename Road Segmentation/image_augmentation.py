@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 Created on Wed May 10 10:54:19 2017
 
@@ -99,14 +99,14 @@ def showImageConcGT(image, GT):
 
 
 
-showImageConcGT(mirroredPic[-1,:,:,:], GTmirroredPic[-1,:,:])
-showImageConcGT(mirroredPic[99,:,:,:], GTmirroredPic[99,:,:])
-showImageConcGT(mirroredPic[199,:,:,:], GTmirroredPic[199,:,:])
-showImageConcGT(mirroredPic[299,:,:,:], GTmirroredPic[299,:,:])
-showImageConcGT(mirroredPic[399,:,:,:], GTmirroredPic[399,:,:])
-showImageConcGT(mirroredPic[499,:,:,:], GTmirroredPic[499,:,:])
-showImageConcGT(mirroredPic[599,:,:,:], GTmirroredPic[599,:,:])
-showImageConcGT(mirroredPic[699,:,:,:], GTmirroredPic[699,:,:])
+#showImageConcGT(mirroredPic[-1,:,:,:], GTmirroredPic[-1,:,:])
+#showImageConcGT(mirroredPic[99,:,:,:], GTmirroredPic[99,:,:])
+#showImageConcGT(mirroredPic[199,:,:,:], GTmirroredPic[199,:,:])
+#showImageConcGT(mirroredPic[299,:,:,:], GTmirroredPic[299,:,:])
+#showImageConcGT(mirroredPic[399,:,:,:], GTmirroredPic[399,:,:])
+#showImageConcGT(mirroredPic[499,:,:,:], GTmirroredPic[499,:,:])
+#showImageConcGT(mirroredPic[599,:,:,:], GTmirroredPic[599,:,:])
+#showImageConcGT(mirroredPic[699,:,:,:], GTmirroredPic[699,:,:])
 
 
 #%%
@@ -141,12 +141,12 @@ print(mirroredPic[699])
 
 #%%
 
-augmentedImages = np.zeros((4800,400,400,3))
-augmentedImages = augmentedImages.astype(np.uint8)
+#augmentedImages = np.zeros((4800,400,400,3))
+#augmentedImages = augmentedImages.astype(np.uint8)
 
 #augmentedImages[0:100,:,:,:] = sateliteImages[0:,:,:,:]
-augmentedImages[0:800,:,:,:] = mirroredPic[0:,:,:,:]
-augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
+#augmentedImages[0:800,:,:,:] = mirroredPic[0:,:,:,:]
+#augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
 
 
 #%%
@@ -171,13 +171,13 @@ def getRandomImagePartAsNewImage(inputImage, upScale):
 #%%
 
 
-counter = 1600
+#counter = 1600
 
-for i in range(0, 1600):
-    for j in range(0,2):
-        
-        augmentedImages[counter] = getRandomImagePartAsNewImage(augmentedImages[i,:,:,:])
-        counter = counter + 1
+#for i in range(0, 1600):
+#    for j in range(0,2):
+#        
+#        augmentedImages[counter] = getRandomImagePartAsNewImage(augmentedImages[i,:,:,:])
+#        counter = counter + 1
 
 
 #%%
@@ -195,9 +195,8 @@ for i in range(0, 1600):
 def findStreets(image):
     foundRoad = False
     
-    roads = set()
-    temp = np.zeros((4))
-    temp = temp.astype(np.uint8)
+    roads = []
+    temp = [0,0,0,0]
     
     for i in range(0, image.shape[0]):
         if(image[0, i] >= 10 and not foundRoad):
@@ -209,14 +208,15 @@ def findStreets(image):
                 temp[1] = i
                 temp[2] = 0
                 temp[3] = 0
-                roads.add(temp)
+                
+                roads.append(temp[:])
                 
     if(foundRoad and i == image.shape[0]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 0
         temp[3] = 0
-        roads.add(temp)
+        roads.append(temp[:])
 
     for i in range(0, image.shape[0]):
         if(image[image.shape[0]-1, i] >= 10 and not foundRoad):
@@ -228,14 +228,14 @@ def findStreets(image):
                 temp[1] = i
                 temp[2] = 0
                 temp[3] = 1
-                roads.add(temp)
+                roads.append(temp[:])
                 
     if(foundRoad and i == image.shape[0]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 0
         temp[3] = 1
-        roads.add(temp)
+        roads.append(temp[:])
         
     
     for i in range(0, image.shape[1]):
@@ -248,14 +248,14 @@ def findStreets(image):
                 temp[1] = i
                 temp[2] = 1
                 temp[3] = 0
-                roads.add(temp)
+                roads.append(temp[:])
                 
     if(foundRoad and i == image.shape[0]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 1
         temp[3] = 0
-        roads.add(temp)
+        roads.append(temp[:])
 
     for i in range(0, image.shape[0]):
         if(image[i, image.shape[1]-1] >= 10 and not foundRoad):
@@ -267,16 +267,17 @@ def findStreets(image):
                 temp[1] = i
                 temp[2] = 1
                 temp[3] = 1
-                roads.add(temp)
+                roads.append(temp[:])
                 
     if(foundRoad and i == image.shape[0]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 1
         temp[3] = 1
-        roads.add(temp)
+        roads.append(temp[:])
         
-    return roads
+    
+    return roads[:]
 
 
 
@@ -284,32 +285,102 @@ def findStreets(image):
 
 def findFittingPart( image, coords, axis):
     
-    originalDistance = coords[1] - coords[0]
+    originalDistance = abs(coords[1] - coords[0])
+    print('original distance:', originalDistance)
+    
     
     ret = [-1,-1]
     
     if (axis == 0): #horizontal
-        for i in range(0, image.shape[1]):
+        for i in range(0, int(image.shape[0]/2)):
             foundRoad = False
             roadStartCoord = 0
-            for j in range(0, image.shape[0]):
-                if ( image[i, j] >= 10 and not foundRoad):
+            for j in range(coords[0], image.shape[1]):
+                if ( image[i, j] >= 10 and not foundRoad and j-coords[1] >= 0):
                     roadStartCoord = j
                     foundRoad = True
                 else:
                     if(foundRoad and image[i,j] < 10):
                         foundRoad = False
-                        distance = i - roadStartCoord
+                        distance = j - roadStartCoord
                         if(abs(distance - originalDistance) <=3 ):
                             # found fitting road part
                             ret[0]= i
-                            ret[1] = j-coords[1]
+                            ret[1] = j-coords[1]-1
                             return ret
                         else:
                             foundRoad = False
                             roadStartCoord = 0
     
     return ret
+
+#%%
+
+
+
+def findFittingPart2( image, coords, edge, debug):
+    
+    originalDistance = abs(coords[1] - coords[0])
+    if(debug):
+        print('original distance:', originalDistance, 'coords', coords)
+    
+    tolerance = 3
+    ret = [-1,-1]
+    i=0
+    j=0
+    
+    while(i < int(image.shape[0]/2)):
+        roadTooBig = False
+        foundRet = False
+        if(debug):
+            print('now at line', i, 'coords', coords)
+        if(edge == [0,0]):
+            line = image[i,:]
+            roadFound = False
+            j=0
+            sinceLastRoad = 0
+            over = 0
+            while( j < line.shape[0]):
+                if( foundRet and line[j] >= 30 ):
+                    over += 1
+                    
+                if( over >= tolerance * 2 ):
+                    foundRet = False
+                    ret = [-1,-1]
+                    roadTooBig = True
+                    
+                if(line[j] >= 30 and not roadFound):
+                    if(debug):
+                        print('found road at coord' , j )
+                    roadFound = True
+                    start = j
+                    if(sinceLastRoad < coords[0]):
+                        if(debug):
+                            print('sadly, coordinates are too far to the left, we can not use them')
+                        
+                        roadFound = False
+                else:
+                    if(line[j] < 30 and not roadFound):
+                        sinceLastRoad += 1
+                    if(line[j] < 30 and roadFound):
+                        if(debug):
+                            print('road segment ends at', j,'distance', j-start)
+                        if(start - coords[0]  > int(image.shape[1])/2 ):
+                            if(debug):
+                                print('sadly, too far right', )
+                            break
+                        roadFound = False
+                        if(abs((j-start) - originalDistance) <= tolerance):
+                            foundRet = True
+                            ret = [i, start-coords[0]]
+                j+=1
+                
+        if(ret != [-1,-1] and not roadTooBig):
+            return ret
+        i += 1
+    
+    return ret
+
 
 
 #%%
@@ -320,35 +391,79 @@ plt.imshow(test)
 plt.show()
 
 s = findStreets(test)
+sb = s
 print(s)
 
-t=np.zeros((3))
+u=np.zeros((3))
 b=np.zeros((3))
 l=np.zeros((3))
 r=np.zeros((3))
 
 while(len(s) > 0):
-    item = s.pop
-    print(np.dtype(item))
+    item = s[-1]
+    s = s[:-1]
+    print(item)
+    
     if(item[2] == 0 and item[3] == 1): #bottom edge
         b[0] = b[0]+1
         b[1] = item[0]
         b[2] = item[1]
+        
+    if(item[2] == 0 and item[3] == 0): #upper edge
+        u[0] = u[0]+1
+        u[1] = item[0]
+        u[2] = item[1]
+        
+    if(item[2] == 1 and item[3] == 0): #left edge
+        l[0] = l[0]+1
+        l[1] = item[0]
+        l[2] = item[1]
+        
+    if(item[2] == 1 and item[3] == 1): #right edge
+        r[0] = r[0]+1
+        r[1] = item[0]
+        r[2] = item[1]
 
 if(b[0] == 1): ## we're good, just look for one street matching now
-    y = b[2]
-    x = b[1]
-    print('extracted coords: ' + (x,y))
+    x2 = int(b[2])
+    x1 = int(b[1])
+    print('extracted coords: ' , [x1,x2])
+
 
 #%%
-rslt = findFittingPart( GTImages[-1,:,:], (y, x), 0)
-print(rslt)
 
 
-plt.imshow(GTImages[-1,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ])
+imagenr=0
+
+plt.imshow(GTImages[imagenr,: , :])
+plt.show()
+rslt = findFittingPart2( GTImages[imagenr,:,:], [x1, x2], [0,0], False)
+print('nr',  imagenr, 'res',rslt,'looking for match',[x1,x2])
+
+order = np.arange(GTImages.shape[0])
+np.random.shuffle(order)
+
+
+#GTImages.shape[0]-1
+while(imagenr < GTImages.shape[0]-1 and rslt == [-1,-1]):
+    imagenr += 1
+    index = order[imagenr]
+    plt.imshow(GTImages[index,: , :])
+    plt.show()
+    rslt = findFittingPart2( GTImages[index,:,:], [x1, x2], [0,0], False)
+    print('nr',  index, 'res',rslt,'looking for match',[x1,x2])
+
+    
+plt.imshow(GTImages[index,: , :])
 plt.show()
 
-temp = np.concatenate((test, GTImages[-1,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ]), axis = 0)
+
+extracted = GTImages[index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ]
+
+plt.imshow(extracted)
+plt.show()
+
+temp = np.concatenate((test, extracted), axis = 0)
 
 plt.imshow(temp)
 plt.show()
