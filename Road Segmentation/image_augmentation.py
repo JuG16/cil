@@ -198,7 +198,7 @@ def findStreets(image):
     roads = []
     temp = [0,0,0,0]
     
-    for i in range(0, image.shape[0]):
+    for i in range(0, image.shape[1]):
         if(image[0, i] >= 10 and not foundRoad):
             temp[0] = i
             foundRoad = True
@@ -211,14 +211,14 @@ def findStreets(image):
                 
                 roads.append(temp[:])
                 
-    if(foundRoad and i == image.shape[0]-1):
+    if(foundRoad and i == image.shape[1]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 0
         temp[3] = 0
         roads.append(temp[:])
 
-    for i in range(0, image.shape[0]):
+    for i in range(0, image.shape[1]):
         if(image[image.shape[0]-1, i] >= 10 and not foundRoad):
             temp[0] = i
             foundRoad = True
@@ -230,7 +230,7 @@ def findStreets(image):
                 temp[3] = 1
                 roads.append(temp[:])
                 
-    if(foundRoad and i == image.shape[0]-1):
+    if(foundRoad and i == image.shape[1]-1):
         foundRoad = False
         temp[1] = i
         temp[2] = 0
@@ -238,7 +238,7 @@ def findStreets(image):
         roads.append(temp[:])
         
     
-    for i in range(0, image.shape[1]):
+    for i in range(0, image.shape[0]):
         if(image[i, 0] >= 10 and not foundRoad):
             temp[0] = i
             foundRoad = True
@@ -278,7 +278,6 @@ def findStreets(image):
         
     
     return roads[:]
-
 
 
 #%%
@@ -325,6 +324,8 @@ def findFittingPart2( image, coords, edge, debug):
         print('original distance:', originalDistance, 'coords', coords)
     
     tolerance = 3
+    threshold = 100
+    
     ret = [-1,-1]
     i=0
     j=0
@@ -341,7 +342,7 @@ def findFittingPart2( image, coords, edge, debug):
             sinceLastRoad = 0
             over = 0
             while( j < line.shape[0]):
-                if( foundRet and line[j] >= 30 ):
+                if( foundRet and line[j] >= threshold ):
                     over += 1
                     
                 if( over >= tolerance * 2 ):
@@ -349,7 +350,7 @@ def findFittingPart2( image, coords, edge, debug):
                     ret = [-1,-1]
                     roadTooBig = True
                     
-                if(line[j] >= 30 and not roadFound):
+                if(line[j] >= threshold and not roadFound):
                     if(debug):
                         print('found road at coord' , j )
                     roadFound = True
@@ -360,9 +361,9 @@ def findFittingPart2( image, coords, edge, debug):
                         
                         roadFound = False
                 else:
-                    if(line[j] < 30 and not roadFound):
+                    if(line[j] < threshold and not roadFound):
                         sinceLastRoad += 1
-                    if(line[j] < 30 and roadFound):
+                    if(line[j] < threshold and roadFound):
                         if(debug):
                             print('road segment ends at', j,'distance', j-start)
                         if(start - coords[0]  > int(image.shape[1])/2 ):
@@ -370,6 +371,7 @@ def findFittingPart2( image, coords, edge, debug):
                                 print('sadly, too far right', )
                             break
                         roadFound = False
+                        sinceLastRoad = 0
                         if(abs((j-start) - originalDistance) <= tolerance):
                             foundRet = True
                             ret = [i, start-coords[0]]
@@ -384,81 +386,96 @@ def findFittingPart2( image, coords, edge, debug):
 
 
 #%%
-test = getRandomImagePartAsNewImage(GTImages[-1,:,:], False)
 
+order = np.arange(GTmirroredPic.shape[0])
+np.random.shuffle(order)
 
-plt.imshow(test)
-plt.show()
-
-s = findStreets(test)
-sb = s
-print(s)
 
 u=np.zeros((3))
 b=np.zeros((3))
 l=np.zeros((3))
 r=np.zeros((3))
+count = 0
 
-while(len(s) > 0):
-    item = s[-1]
-    s = s[:-1]
-    print(item)
+while(b[0] != 1):
+        
+    count +=1
     
-    if(item[2] == 0 and item[3] == 1): #bottom edge
-        b[0] = b[0]+1
-        b[1] = item[0]
-        b[2] = item[1]
+    u=np.zeros((3))
+    b=np.zeros((3))
+    l=np.zeros((3))
+    r=np.zeros((3))
+    
+    
+    test = getRandomImagePartAsNewImage(GTmirroredPic[order[count],:,:], False)
+    
+    
+    plt.imshow(test)
+    plt.show()
+    
+    s = findStreets(test)
+    sb = s
+    print(s)
+    
+    
+    while(len(s) > 0):
+        item = s[-1]
+        s = s[:-1]
+        print(item)
         
-    if(item[2] == 0 and item[3] == 0): #upper edge
-        u[0] = u[0]+1
-        u[1] = item[0]
-        u[2] = item[1]
-        
-    if(item[2] == 1 and item[3] == 0): #left edge
-        l[0] = l[0]+1
-        l[1] = item[0]
-        l[2] = item[1]
-        
-    if(item[2] == 1 and item[3] == 1): #right edge
-        r[0] = r[0]+1
-        r[1] = item[0]
-        r[2] = item[1]
-
-if(b[0] == 1): ## we're good, just look for one street matching now
-    x2 = int(b[2])
-    x1 = int(b[1])
-    print('extracted coords: ' , [x1,x2])
-
+        if(item[2] == 0 and item[3] == 1): #bottom edge
+            b[0] = b[0]+1
+            b[1] = item[0]
+            b[2] = item[1]
+            
+        if(item[2] == 0 and item[3] == 0): #upper edge
+            u[0] = u[0]+1
+            u[1] = item[0]
+            u[2] = item[1]
+            
+        if(item[2] == 1 and item[3] == 0): #left edge
+            l[0] = l[0]+1
+            l[1] = item[0]
+            l[2] = item[1]
+            
+        if(item[2] == 1 and item[3] == 1): #right edge
+            r[0] = r[0]+1
+            r[1] = item[0]
+            r[2] = item[1]
+    
+    if(b[0] == 1): ## we're good, just look for one street matching now
+        x2 = int(b[2])
+        x1 = int(b[1])
+        print('extracted coords: ' , [x1,x2])
+    
 
 #%%
-
-
 imagenr=0
 
-plt.imshow(GTImages[imagenr,: , :])
+plt.imshow(GTmirroredPic[imagenr,: , :])
 plt.show()
-rslt = findFittingPart2( GTImages[imagenr,:,:], [x1, x2], [0,0], False)
+rslt = findFittingPart2( GTmirroredPic[imagenr,:,:], [x1, x2], [0,0], False)
 print('nr',  imagenr, 'res',rslt,'looking for match',[x1,x2])
 
-order = np.arange(GTImages.shape[0])
+order = np.arange(GTmirroredPic.shape[0])
 np.random.shuffle(order)
 
 
-#GTImages.shape[0]-1
-while(imagenr < GTImages.shape[0]-1 and rslt == [-1,-1]):
+#GTmirroredPic.shape[0]-1
+while(imagenr < GTmirroredPic.shape[0]-1 and rslt == [-1,-1]):
     imagenr += 1
     index = order[imagenr]
-    plt.imshow(GTImages[index,: , :])
+    plt.imshow(GTmirroredPic[index,: , :])
     plt.show()
-    rslt = findFittingPart2( GTImages[index,:,:], [x1, x2], [0,0], False)
+    rslt = findFittingPart2( GTmirroredPic[index,:,:], [x1, x2], [0,0], False)
     print('nr',  index, 'res',rslt,'looking for match',[x1,x2])
 
     
-plt.imshow(GTImages[index,: , :])
+plt.imshow(GTmirroredPic[index,: , :])
 plt.show()
 
 
-extracted = GTImages[index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ]
+extracted = GTmirroredPic[index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ]
 
 plt.imshow(extracted)
 plt.show()
@@ -467,3 +484,12 @@ temp = np.concatenate((test, extracted), axis = 0)
 
 plt.imshow(temp)
 plt.show()
+
+plt.imshow(temp[199:203,x1-10:x2+10])
+plt.show()
+
+print(extracted[0, x1-2:x2+2 ])
+
+print('new pictures streets', findStreets(temp))
+
+
