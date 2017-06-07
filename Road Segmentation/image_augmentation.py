@@ -8,6 +8,8 @@ Created on Wed May 10 10:54:19 2017
 from scipy import misc
 import numpy as np
 import matplotlib.pyplot as plt
+import winsound
+
 
 # get image data:
 sateliteImages = np.zeros((100,400,400,3))
@@ -330,6 +332,509 @@ def findFittingPart( image, coords, axis):
 
 
 
+def findFittingPart3( image, coords, edge, debug):
+    
+    if(len(image.shape) > 2):
+        image = image[:,:,0]
+    
+    if(edge != [1,1]): 
+        originalDistance = abs(coords[1] - coords[0])
+    else: 
+        originalDistance = [ coords[1][1] - coords[1][0] , coords[0][1] - coords[0][0] ]
+    if(debug):
+        print('original distance:', originalDistance, 'coords', coords)
+    
+    tolerance = 3
+    threshold = 100
+    
+    ret = [-1,-1]
+    i=0
+    j=0
+    
+    while(i < int(image.shape[0]/2)):
+        roadTooBig = False
+        foundRet = False
+        if(debug):
+            print('now at line', i, 'coords', coords)
+        if(edge == [0,0] or edge == [1,1]): # look on the bottom side
+            
+            if(edge == [1,1]):
+                origDist = originalDistance[0]
+            else:
+                origDist = originalDistance
+            if(edge == [0,0]):
+                bottomCoords = coords
+            else: 
+                bottomCoords = coords[1]
+            line = image[i,:]
+            roadFound = False
+            j=0
+            sinceLastRoad = 0
+            over = 0
+            while( j < line.shape[0]):
+                if( foundRet and line[j] >= threshold ):
+                    over += 1
+                    
+                if( over >= tolerance * 2 ):
+                    foundRet = False
+                    ret = [-1,-1]
+                    roadTooBig = True
+                    
+                if(line[j] >= threshold and not roadFound):
+                    if(debug):
+                        print('found road at coord' , j )
+                    roadFound = True
+                    start = j
+                    if(sinceLastRoad < bottomCoords[0]):
+                        if(debug):
+                            print('sadly, coordinates are too far to the left, we can not use them')
+                        
+                        roadFound = False
+                else:
+                    if(line[j] < threshold and not roadFound):
+                        sinceLastRoad += 1
+                    if(line[j] < threshold and roadFound):
+                        if(debug):
+                            print('road segment ends at', j,'distance', j-start)
+                        if(start - bottomCoords[0]  > int(image.shape[1])/2 ):
+                            if(debug):
+                                print('sadly, too far right', )
+                            break
+                        roadFound = False
+                        sinceLastRoad = 0
+                        if(abs((j-start) - origDist) <= tolerance):
+                            foundRet = True
+                            ret = [i, start-bottomCoords[0]]
+                j+=1
+        
+
+
+
+
+
+
+        if(edge == [1,0] or edge == [1,1]): # look on the right side
+            if(edge == [1,1]):
+                origDist = originalDistance[1]
+            else:
+                origDist = originalDistance
+            if(edge == [1,1]):
+                rightCoords = coords[0]
+            else: 
+                rightCoords = coords
+            col = image[:,i]
+            roadFound = False
+            j=0
+            sinceLastRoad = 0
+            over = 0
+            while( j < col.shape[0]):
+                if( foundRet and col[j] >= threshold ):
+                    over += 1
+                    
+                if( over >= tolerance * 2 ):
+                    foundRet = False
+                    ret = [-1,-1]
+                    roadTooBig = True
+                    
+                if(col[j] >= threshold and not roadFound):
+                    if(debug):
+                        print('found road at coord' , j )
+                    roadFound = True
+                    start = j
+                    if(sinceLastRoad < rightCoords[0]):
+                        if(debug):
+                            print('sadly, coordinates are too far to the left, we can not use them')
+                        
+                        roadFound = False
+                else:
+                    if(col[j] < threshold and not roadFound):
+                        sinceLastRoad += 1
+                    if(col[j] < threshold and roadFound):
+                        if(debug):
+                            print('road segment ends at', j,'distance', j-start)
+                        if(start - rightCoords[0]  > int(image.shape[0])/2 ):
+                            if(debug):
+                                print('sadly, too far right', )
+                            break
+                        roadFound = False
+                        sinceLastRoad = 0
+                        if(abs((j-start) - origDist) <= tolerance):
+                            foundRet = True
+                            ret = [ start-rightCoords[0], i ]
+                j+=1
+        
+        if(ret != [-1,-1] and not roadTooBig and edge != [1,1]):
+            streetSet = findStreets(image[ret[0]:ret[0]+200, ret[1]:ret[1]+200])
+            
+            u=np.zeros((3))
+            b=np.zeros((3))
+            l=np.zeros((3))
+            r=np.zeros((3))
+            
+            while(len(streetSet) > 0):
+                item = streetSet[-1]
+                streetSet = streetSet[:-1]
+                print(item)
+                
+                if(item[2] == 0 and item[3] == 1): #bottom edge
+                    b[0] = b[0]+1
+                    b[1] = item[0]
+                    b[2] = item[1]
+                    
+                if(item[2] == 0 and item[3] == 0): #upper edge
+                    u[0] = u[0]+1
+                    u[1] = item[0]
+                    u[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 0): #left edge
+                    l[0] = l[0]+1
+                    l[1] = item[0]
+                    l[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 1): #right edge
+                    r[0] = r[0]+1
+                    r[1] = item[0]
+                    r[2] = item[1]
+            
+            
+            nrCrossingRoads = 1
+            if( edge == [0 , 0] ):
+                nrCrossingRoads = r[0]
+            if( edge == [1 , 0] ):
+                nrCrossingRoads = b[0]
+            
+            if( nrCrossingRoads == 1 ):
+                return ret
+            else: 
+                return [-1,-1]
+        i += 1
+    
+    return ret
+
+
+
+#%%
+
+
+def findFittingPart4( image, coords, edge, debug):
+    
+    if(len(image.shape) > 2):
+        image = image[:,:,0]
+    
+    if(edge != [1,1]): 
+        originalDistance = abs(coords[1] - coords[0])
+    else: 
+        originalDistance = [ coords[1][1] - coords[1][0] , coords[0][1] - coords[0][0] ] # coords = [horizontal, vertical]
+    if(debug):
+        print('original distance:', originalDistance, 'coords', coords)
+    
+    tolerance = 6
+    threshold = 100
+    
+    ret = [-1,-1]
+    i=0
+    j=0
+    
+    if(edge != [1,1]):
+        while(i < int(image.shape[0]/2)):
+            roadTooBig = False
+            foundRet = False
+            if(debug):
+                print('now at line', i, 'coords', coords)
+            if(edge == [0,0]): # look on the bottom side
+                
+                origDist = originalDistance
+                bottomCoords = coords
+                
+                line = image[i,:]
+                roadFound = False
+                j=0
+                sinceLastRoad = 0
+                over = 0
+                while( j < line.shape[0]):
+                    if( foundRet and line[j] >= threshold ):
+                        over += 1
+                        
+                    if( over >= tolerance * 2 ):
+                        foundRet = False
+                        ret = [-1,-1]
+                        roadTooBig = True
+                        
+                    if(line[j] >= threshold and not roadFound):
+                        if(debug):
+                            print('found road at coord' , j )
+                        roadFound = True
+                        start = j
+                        if(sinceLastRoad < bottomCoords[0]):
+                            if(debug):
+                                print('sadly, coordinates are too far to the left, we can not use them')
+                            
+                            roadFound = False
+                    else:
+                        if(line[j] < threshold and not roadFound):
+                            sinceLastRoad += 1
+                        if(line[j] < threshold and roadFound):
+                            if(debug):
+                                print('road segment ends at', j,'distance', j-start)
+                            if(start - bottomCoords[0]  > int(image.shape[1])/2 ):
+                                if(debug):
+                                    print('sadly, too far right', )
+                                break
+                            roadFound = False
+                            sinceLastRoad = 0
+                            if(abs((j-start) - origDist) <= tolerance):
+                                foundRet = True
+                                ret = [i, start-bottomCoords[0]]
+                    j+=1
+            
+    
+    
+    
+    
+    
+    
+            if(edge == [1,0]): # look on the right side
+                origDist = originalDistance
+                rightCoords = coords
+                
+                col = image[:,i]
+                roadFound = False
+                j=0
+                sinceLastRoad = 0
+                over = 0
+                while( j < col.shape[0]):
+                    if( foundRet and col[j] >= threshold ):
+                        over += 1
+                        
+                    if( over >= tolerance * 2 ):
+                        foundRet = False
+                        ret = [-1,-1]
+                        roadTooBig = True
+                        
+                    if(col[j] >= threshold and not roadFound):
+                        if(debug):
+                            print('found road at coord' , j )
+                        roadFound = True
+                        start = j
+                        if(sinceLastRoad < rightCoords[0]):
+                            if(debug):
+                                print('sadly, coordinates are too far to the left, we can not use them')
+                            
+                            roadFound = False
+                    else:
+                        if(col[j] < threshold and not roadFound):
+                            sinceLastRoad += 1
+                        if(col[j] < threshold and roadFound):
+                            if(debug):
+                                print('road segment ends at', j,'distance', j-start)
+                            if(start - rightCoords[0]  > int(image.shape[0])/2 ):
+                                if(debug):
+                                    print('sadly, too far right', )
+                                break
+                            roadFound = False
+                            sinceLastRoad = 0
+                            if(abs((j-start) - origDist) <= tolerance):
+                                foundRet = True
+                                ret = [ start-rightCoords[0], i ]
+                    j+=1
+            
+            if(ret != [-1,-1] and not roadTooBig and edge != [1,1]):
+                streetSet = findStreets(image[ret[0]:ret[0]+200, ret[1]:ret[1]+200])
+                
+                u=np.zeros((3))
+                b=np.zeros((3))
+                l=np.zeros((3))
+                r=np.zeros((3))
+                
+                while(len(streetSet) > 0):
+                    item = streetSet[-1]
+                    streetSet = streetSet[:-1]
+                    print(item)
+                    
+                    if(item[2] == 0 and item[3] == 1): #bottom edge
+                        b[0] = b[0]+1
+                        b[1] = item[0]
+                        b[2] = item[1]
+                        
+                    if(item[2] == 0 and item[3] == 0): #upper edge
+                        u[0] = u[0]+1
+                        u[1] = item[0]
+                        u[2] = item[1]
+                        
+                    if(item[2] == 1 and item[3] == 0): #left edge
+                        l[0] = l[0]+1
+                        l[1] = item[0]
+                        l[2] = item[1]
+                        
+                    if(item[2] == 1 and item[3] == 1): #right edge
+                        r[0] = r[0]+1
+                        r[1] = item[0]
+                        r[2] = item[1]
+                
+                
+                nrCrossingRoads = 1
+                if( edge == [0 , 0] ):
+                    nrCrossingRoads = r[0]
+                if( edge == [1 , 0] ):
+                    nrCrossingRoads = b[0]
+                
+                if( nrCrossingRoads == 1 ):
+                    return ret
+                else: 
+                    return [-1,-1]
+            i += 1
+        
+        return ret
+    else: # both must be fitting. the left, and the above edge
+        
+        toFitLeft = np.zeros((200))
+        toFitAbove = np.zeros((200))
+        
+        
+        
+        for w in range(coords[0][0], coords[0][1]):
+            toFitLeft[w] = 1
+        for w in range(coords[1][0], coords[1][1]):
+            toFitAbove[w] = 1
+            
+        
+            
+        while(i < int(image.shape[0]/2)):
+            j=0
+            while(j < int(image.shape[1]/2)):
+                tooManyRoads = False
+                
+                above = np.zeros((200))
+                above = above.astype(np.uint8)
+                
+                left = np.zeros((200))
+                left = left.astype(np.uint8)
+                
+                above[:] = image [ i, j : j + int(image.shape[1]/2)]
+                left[:] = image [ i: i + int(image.shape[0]/2), j ]               
+                
+                for w in range(0, above.shape[0]):
+                    
+                    if(above[w] > threshold):
+                        above[w] = 1
+                    else:
+                        above[w] = 0
+                    if(left[w] > threshold):
+                        left[w] = 1
+                    else:
+                        left[w] = 0
+                
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, above.shape[0]):
+                    if(above[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(above[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 1', nrOfRoads)
+                    tooManyRoads = True
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, left.shape[0]):
+                    if(left[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(left[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 2', nrOfRoads)
+                    tooManyRoads = True
+                
+                if(not tooManyRoads):
+                    aboveStart = 0
+                    leftStart = 0
+                    toFitLeftStart = 0
+                    toFitAboveStart = 0
+                    
+                    for w in range(0, above.shape[0]):
+                        if(above[w] == 1):
+                            aboveStart = w
+                            break
+                    
+                    for w in range(0, left.shape[0]):
+                        if(left[w] == 1):
+                            leftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitLeft.shape[0]):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitAbove.shape[0]):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveStart = w
+                            break
+                        
+                    
+                        
+                    aboveEnd = above.shape[0]-1
+                    leftEnd = left.shape[0]-1
+                    toFitLeftEnd = toFitLeft.shape[0]-1
+                    toFitAboveEnd = toFitAbove.shape[0]-1
+                    
+                    for w in range(above.shape[0]-1,-1,-1):
+                        if(above[w] == 1):
+                            aboveEnd = w
+                            break
+                    
+                    for w in range(left.shape[0]-1, -1,-1):
+                        if(left[w] == 1):
+                            leftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitLeft.shape[0]-1, -1,-1):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitAbove.shape[0]-1, -1,-1):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveEnd = w
+                            break
+                    
+                    if(debug):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                    
+                    if( abs(aboveStart - toFitAboveStart) + abs(aboveEnd - toFitAboveEnd) <= tolerance and abs(leftStart - toFitLeftStart) + abs(leftEnd - toFitLeftEnd) <= tolerance):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                        return [i, j]
+                
+                
+                j = j + 1          
+            
+            i = i + 1
+    
+    #print('reached end, nothing found')
+    return [-1,-1]
+
+
+
+
+
+#%%
+
 def findFittingPart2( image, coords, edge, debug):
     
     if(len(image.shape) > 2):
@@ -441,13 +946,53 @@ def findFittingPart2( image, coords, edge, debug):
                             ret = [ start-coords[0], i ]
                 j+=1
                 
-        if(ret != [-1,-1] and not roadTooBig):
-            return ret
+        if(ret != [-1,-1] and not roadTooBig and edge != [1,1]):
+            streetSet = findStreets(image[ret[0]:ret[0]+200, ret[1]:ret[1]+200])
+            
+            u=np.zeros((3))
+            b=np.zeros((3))
+            l=np.zeros((3))
+            r=np.zeros((3))
+            
+            while(len(streetSet) > 0):
+                item = streetSet[-1]
+                streetSet = streetSet[:-1]
+                print(item)
+                
+                if(item[2] == 0 and item[3] == 1): #bottom edge
+                    b[0] = b[0]+1
+                    b[1] = item[0]
+                    b[2] = item[1]
+                    
+                if(item[2] == 0 and item[3] == 0): #upper edge
+                    u[0] = u[0]+1
+                    u[1] = item[0]
+                    u[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 0): #left edge
+                    l[0] = l[0]+1
+                    l[1] = item[0]
+                    l[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 1): #right edge
+                    r[0] = r[0]+1
+                    r[1] = item[0]
+                    r[2] = item[1]
+            
+            
+            nrCrossingRoads = 1
+            if( edge == [0 , 0] ):
+                nrCrossingRoads = r[0]
+            if( edge == [1 , 0] ):
+                nrCrossingRoads = b[0]
+            
+            if( nrCrossingRoads == 1 ):
+                return ret
+            else: 
+                return [-1,-1]
         i += 1
     
     return ret
-
-
 
 #%%
 
@@ -520,17 +1065,14 @@ while( not (b[0] == 1 and r[0] == 1)):
         y1 = int(r[1])
         print('extracted coords right: ' , [y1,y2])
         
-    
-        
 
-#%%
 imagenr=0
 index = order[imagenr]
 
 plt.imshow(allImages[1,index,: , :, 0])
 plt.show()
-rsltRight = findFittingPart2( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
+rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
+#print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
 
 order = np.arange(allImages.shape[1])
 np.random.shuffle(order)
@@ -539,10 +1081,10 @@ np.random.shuffle(order)
 while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
     imagenr =(imagenr + 1 )% allImages.shape[1]
     index = order[imagenr]
-    plt.imshow(allImages[1,index,: , :, 0])
-    plt.show()
-    rsltRight = findFittingPart2( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-    print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
+    #plt.imshow(allImages[1,index,: , :, 0])
+    #plt.show()
+    rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
+    #print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
 
 rightIndex = index
 
@@ -551,8 +1093,8 @@ index = order[imagenr]
 
 plt.imshow(allImages[1,index,: , :, 0])
 plt.show()
-rslt = findFittingPart2( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
-print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
+rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
+#print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
 
 order = np.arange(allImages.shape[1])
 np.random.shuffle(order)
@@ -561,10 +1103,10 @@ np.random.shuffle(order)
 while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
     imagenr =(imagenr + 1 )% allImages.shape[1]
     index = order[imagenr]
-    plt.imshow(allImages[1,index,: , :, 0])
-    plt.show()
-    rslt = findFittingPart2( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
-    print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
+    #plt.imshow(allImages[1,index,: , :, 0])
+    #plt.show()
+    rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
+    #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
 
 
     
@@ -604,13 +1146,102 @@ finalPicGT = np.concatenate((tempGT, rightGT), axis = 1)
 
 showImageConcGT(finalPicSat, finalPicGT)
 
-minx = min(0,x1-10)
-maxx = max(allImages.shape[3]-1, x2+10)
 
-plt.imshow(tempGT[199:203,minx:maxx])
-plt.show()
 
 print('new pictures streets', findStreets(tempGT))
+winsound.Beep(500,1100)
+
+#%%
+showImageConcGT(finalPicSat, finalPicGT)
+bottomSet = findStreets(extractedGT)
+rightSet = findStreets(extractedGTRight)
+
+print(bottomSet)
+plt.imshow(extractedGT)
+plt.show
+print(rightSet)
+plt.imshow(extractedGTRight)
+plt.show
+
+while(len(bottomSet) > 0):
+        item = bottomSet[-1]
+        bottomSet = bottomSet[:-1]
+        if(item[2] == 1 and item[3] == 1): #right edge
+            horizontalCoords = [item[0], item[1]]
+            
+print(horizontalCoords)
+
+while(len(rightSet) > 0):
+        item = rightSet[-1]
+        rightSet = rightSet[:-1]        
+        if(item[2] == 0 and item[3] == 1): #bottom edge
+            verticalCoords = [item[0], item[1]]
+            
+print(verticalCoords)
+print([horizontalCoords, verticalCoords][0])
+bottomLeftRslt= [-1,-1]
+times = 0
+while(bottomLeftRslt == [-1,-1]):
+    bottomLeftRslt = findFittingPart4( allImages[1,times,:,:,0], [horizontalCoords, verticalCoords], [1,1], False)
+    print(times, bottomLeftRslt)
+    if(times%10 == 0):
+        winsound.Beep(500,400)
+    times = times + 1
+    if(times == 800):
+        print('could not find an image at all...')
+        break
+
+if(bottomLeftRslt != [-1,-1]):
+        
+    showImageConcGT(allImages[0,times-1,:,:,:], allImages[1,times-1,:,:,:])
+    
+    bottomLeftGT = allImages[1,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,0]
+    bottomLeftSat = allImages[0,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,:]
+    
+    #plt.imshow(bottomLeftGT)
+    #plt.show
+    #plt.imshow(bottomLeftSat)
+    #plt.show
+    
+    finalPicSat[200:,200:,:] = bottomLeftSat
+    finalPicGT[200:,200:] = bottomLeftGT
+    
+    showImageConcGT(finalPicSat, finalPicGT)
+
+winsound.Beep(700,1100)
 
 
+#%%
+
+goodPictureCounter = np.load('counter.npy')
+goodPictures = np.load('pictures.npy')
+
+
+goodPictures[0,int(goodPictureCounter[0]),:,:,:] = finalPicSat
+goodPictures[1,int(goodPictureCounter[0]),:,:,0] = finalPicGT
+
+goodPictureCounter[0] = goodPictureCounter[0] + 1
+
+np.save('counter.npy', goodPictureCounter)
+np.save('pictures.npy', goodPictures)
+
+
+#%%
+
+#%%
+
+
+functionTest = np.ones((400,400))
+functionTest = functionTest.astype(np.uint8)
+
+
+functionTest[150:170, 50:] = 240
+functionTest[50:, 130:190] = 240
+
+
+
+testCoords = [[100,121],[80, 140]]
+
+testrslt = findFittingPart4(functionTest, testCoords,[1,1], False)
+print(testrslt)
 
