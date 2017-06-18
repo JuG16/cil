@@ -996,234 +996,239 @@ def findFittingPart2( image, coords, edge, debug):
 
 #%%
 
-order = np.arange(allImages.shape[1])
-np.random.shuffle(order)
-
-
-u=np.ones((3))*10
-b=np.ones((3))*10
-l=np.ones((3))*10
-r=np.ones((3))*10
-count = 0
-
-while( not (b[0] == 1 and r[0] == 1)):
-    
-    count =( count + 1 )% allImages.shape[1]
-    
-    
-    
-    
-    u=np.zeros((3))
-    b=np.zeros((3))
-    l=np.zeros((3))
-    r=np.zeros((3))
-    
-    test = getRandomImagePartAsNewImage(allImages[:,order[count],:,:,:], False)
-    testGT = test[1,:,:,:]
-    testSat = test[0,:,:,:]
-    
-    showImageConcGT(testSat,testGT)
-    
-    s = findStreets(testGT)
-    sb = s
-    print(s)
-    
-    
-    while(len(s) > 0):
-        item = s[-1]
-        s = s[:-1]
-        print(item)
-        
-        if(item[2] == 0 and item[3] == 1): #bottom edge
-            b[0] = b[0]+1
-            b[1] = item[0]
-            b[2] = item[1]
-            
-        if(item[2] == 0 and item[3] == 0): #upper edge
-            u[0] = u[0]+1
-            u[1] = item[0]
-            u[2] = item[1]
-            
-        if(item[2] == 1 and item[3] == 0): #left edge
-            l[0] = l[0]+1
-            l[1] = item[0]
-            l[2] = item[1]
-            
-        if(item[2] == 1 and item[3] == 1): #right edge
-            r[0] = r[0]+1
-            r[1] = item[0]
-            r[2] = item[1]
-    
-    print(b[0] , r[0])
-    
-    if(b[0] <= 1 and r[0] <= 1): ## we're good, just look for at most one street matching now
-        x2 = int(b[2])
-        x1 = int(b[1])
-        print('extracted coords bottom: ' , [x1,x2])
-
-        y2 = int(r[2])
-        y1 = int(r[1])
-        print('extracted coords right: ' , [y1,y2])
-        
-
-imagenr=0
-index = order[imagenr]
-
-plt.imshow(allImages[1,index,: , :, 0])
-plt.show()
-rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-#print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
-
-order = np.arange(allImages.shape[1])
-np.random.shuffle(order)
-
-
-while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
-    imagenr =(imagenr + 1 )% allImages.shape[1]
-    index = order[imagenr]
-    #plt.imshow(allImages[1,index,: , :, 0])
-    #plt.show()
-    rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-    #print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
-
-rightIndex = index
-
-imagenr=0
-index = order[imagenr]
-
-plt.imshow(allImages[1,index,: , :, 0])
-plt.show()
-rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
-#print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
-
-order = np.arange(allImages.shape[1])
-np.random.shuffle(order)
-
-
-while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
-    imagenr =(imagenr + 1 )% allImages.shape[1]
-    index = order[imagenr]
-    #plt.imshow(allImages[1,index,: , :, 0])
-    #plt.show()
-    rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
-    #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
-
-
-    
-plt.imshow(allImages[1,index,: , :,0])
-plt.show()
-
-
-
-extractedGTRight = allImages[1, rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,0]
-extractedSatRight = allImages[0,rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,:]
-
-extractedGT = allImages[1,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,0]
-extractedSat = allImages[0,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,:]
-
-showImageConcGT(extractedSat, extractedGT)
-showImageConcGT(extractedSatRight, extractedGTRight)
-
-bottomLeftSat = np.zeros((200,200,3))
-bottomLeftSat = bottomLeftSat.astype(np.uint8)
-bottomLeftGT = np.zeros((200,200))
-bottomLeftGT = bottomLeftGT.astype(np.uint8)
-
-
-tempSat = np.concatenate((testSat, extractedSat), axis = 0)
-rightSat = np.concatenate((extractedSatRight, bottomLeftSat), axis = 0)
-
-print(testGT.shape)
-print(extractedGT.shape)
-tempGT = np.concatenate((testGT[:,:,0], extractedGT), axis = 0)
-rightGT = np.concatenate((extractedGTRight, bottomLeftGT), axis = 0)
-
-showImageConcGT(tempSat, tempGT)
-showImageConcGT(rightSat, rightGT)
-
-finalPicSat = np.concatenate((tempSat, rightSat), axis = 1)
-finalPicGT = np.concatenate((tempGT, rightGT), axis = 1)
-
-showImageConcGT(finalPicSat, finalPicGT)
-
-
-
-print('new pictures streets', findStreets(tempGT))
-winsound.Beep(500,1100)
-
-#%%
-showImageConcGT(finalPicSat, finalPicGT)
-bottomSet = findStreets(extractedGT)
-rightSet = findStreets(extractedGTRight)
-
-print(bottomSet)
-plt.imshow(extractedGT)
-plt.show
-print(rightSet)
-plt.imshow(extractedGTRight)
-plt.show
-
-while(len(bottomSet) > 0):
-        item = bottomSet[-1]
-        bottomSet = bottomSet[:-1]
-        if(item[2] == 1 and item[3] == 1): #right edge
-            horizontalCoords = [item[0], item[1]]
-            
-print(horizontalCoords)
-
-while(len(rightSet) > 0):
-        item = rightSet[-1]
-        rightSet = rightSet[:-1]        
-        if(item[2] == 0 and item[3] == 1): #bottom edge
-            verticalCoords = [item[0], item[1]]
-            
-print(verticalCoords)
-print([horizontalCoords, verticalCoords][0])
-bottomLeftRslt= [-1,-1]
-times = 0
-while(bottomLeftRslt == [-1,-1]):
-    bottomLeftRslt = findFittingPart4( allImages[1,times,:,:,0], [horizontalCoords, verticalCoords], [1,1], False)
-    print(times, bottomLeftRslt)
-    if(times%10 == 0):
-        winsound.Beep(500,400)
-    times = times + 1
-    if(times == 800):
-        print('could not find an image at all...')
-        break
-
-if(bottomLeftRslt != [-1,-1]):
-        
-    showImageConcGT(allImages[0,times-1,:,:,:], allImages[1,times-1,:,:,:])
-    
-    bottomLeftGT = allImages[1,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,0]
-    bottomLeftSat = allImages[0,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,:]
-    
-    #plt.imshow(bottomLeftGT)
-    #plt.show
-    #plt.imshow(bottomLeftSat)
-    #plt.show
-    
-    finalPicSat[200:,200:,:] = bottomLeftSat
-    finalPicGT[200:,200:] = bottomLeftGT
-    
-    showImageConcGT(finalPicSat, finalPicGT)
-
-winsound.Beep(700,1100)
-
-
-#%%
+#TODO: thread function here, args: allImages but only some part of the total set
+    #
 
 goodPictureCounter = np.load('counter.npy')
 goodPictures = np.load('pictures.npy')
 
-
-goodPictures[0,int(goodPictureCounter[0]),:,:,:] = finalPicSat
-goodPictures[1,int(goodPictureCounter[0]),:,:,0] = finalPicGT
-
-goodPictureCounter[0] = goodPictureCounter[0] + 1
-
-np.save('counter.npy', goodPictureCounter)
-np.save('pictures.npy', goodPictures)
+while(goodPictureCounter[0] < goodPictures.shape[1]):
+    
+    
+    order = np.arange(allImages.shape[1])
+    np.random.shuffle(order)
+    
+    
+    u=np.ones((3))*10
+    b=np.ones((3))*10
+    l=np.ones((3))*10
+    r=np.ones((3))*10
+    count = 0
+    
+    while( not (b[0] == 1 and r[0] == 1)):
+        
+        count =( count + 1 )% allImages.shape[1]
+        
+        
+        
+        
+        u=np.zeros((3))
+        b=np.zeros((3))
+        l=np.zeros((3))
+        r=np.zeros((3))
+        
+        test = getRandomImagePartAsNewImage(allImages[:,order[count],:,:,:], False)
+        testGT = test[1,:,:,:]
+        testSat = test[0,:,:,:]
+        
+        showImageConcGT(testSat,testGT)
+        
+        s = findStreets(testGT)
+        sb = s
+        print(s)
+        
+        
+        while(len(s) > 0):
+            item = s[-1]
+            s = s[:-1]
+            print(item)
+            
+            if(item[2] == 0 and item[3] == 1): #bottom edge
+                b[0] = b[0]+1
+                b[1] = item[0]
+                b[2] = item[1]
+                
+            if(item[2] == 0 and item[3] == 0): #upper edge
+                u[0] = u[0]+1
+                u[1] = item[0]
+                u[2] = item[1]
+                
+            if(item[2] == 1 and item[3] == 0): #left edge
+                l[0] = l[0]+1
+                l[1] = item[0]
+                l[2] = item[1]
+                
+            if(item[2] == 1 and item[3] == 1): #right edge
+                r[0] = r[0]+1
+                r[1] = item[0]
+                r[2] = item[1]
+        
+        print(b[0] , r[0])
+        
+        if(b[0] <= 1 and r[0] <= 1): ## we're good, just look for at most one street matching now
+            x2 = int(b[2])
+            x1 = int(b[1])
+            print('extracted coords bottom: ' , [x1,x2])
+    
+            y2 = int(r[2])
+            y1 = int(r[1])
+            print('extracted coords right: ' , [y1,y2])
+            
+    
+    imagenr=0
+    index = order[imagenr]
+    
+    plt.imshow(allImages[1,index,: , :, 0])
+    plt.show()
+    rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
+    #print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
+    
+    order = np.arange(allImages.shape[1])
+    np.random.shuffle(order)
+    
+    
+    while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
+        imagenr =(imagenr + 1 )% allImages.shape[1]
+        index = order[imagenr]
+        #plt.imshow(allImages[1,index,: , :, 0])
+        #plt.show()
+        rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
+        #print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
+    
+    rightIndex = index
+    
+    imagenr=0
+    index = order[imagenr]
+    
+    plt.imshow(allImages[1,index,: , :, 0])
+    plt.show()
+    rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
+    #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
+    
+    order = np.arange(allImages.shape[1])
+    np.random.shuffle(order)
+    
+    
+    while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
+        imagenr =(imagenr + 1 )% allImages.shape[1]
+        index = order[imagenr]
+        #plt.imshow(allImages[1,index,: , :, 0])
+        #plt.show()
+        rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
+        #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
+    
+    
+        
+    plt.imshow(allImages[1,index,: , :,0])
+    plt.show()
+    
+    
+    
+    extractedGTRight = allImages[1, rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,0]
+    extractedSatRight = allImages[0,rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,:]
+    
+    extractedGT = allImages[1,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,0]
+    extractedSat = allImages[0,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,:]
+    
+    showImageConcGT(extractedSat, extractedGT)
+    showImageConcGT(extractedSatRight, extractedGTRight)
+    
+    bottomLeftSat = np.zeros((200,200,3))
+    bottomLeftSat = bottomLeftSat.astype(np.uint8)
+    bottomLeftGT = np.zeros((200,200))
+    bottomLeftGT = bottomLeftGT.astype(np.uint8)
+    
+    
+    tempSat = np.concatenate((testSat, extractedSat), axis = 0)
+    rightSat = np.concatenate((extractedSatRight, bottomLeftSat), axis = 0)
+    
+    print(testGT.shape)
+    print(extractedGT.shape)
+    tempGT = np.concatenate((testGT[:,:,0], extractedGT), axis = 0)
+    rightGT = np.concatenate((extractedGTRight, bottomLeftGT), axis = 0)
+    
+    showImageConcGT(tempSat, tempGT)
+    showImageConcGT(rightSat, rightGT)
+    
+    finalPicSat = np.concatenate((tempSat, rightSat), axis = 1)
+    finalPicGT = np.concatenate((tempGT, rightGT), axis = 1)
+    
+    showImageConcGT(finalPicSat, finalPicGT)
+    
+    
+    
+    print('new pictures streets', findStreets(tempGT))
+    
+    showImageConcGT(finalPicSat, finalPicGT)
+    bottomSet = findStreets(extractedGT)
+    rightSet = findStreets(extractedGTRight)
+    
+    print(bottomSet)
+    plt.imshow(extractedGT)
+    plt.show
+    print(rightSet)
+    plt.imshow(extractedGTRight)
+    plt.show
+    
+    while(len(bottomSet) > 0):
+            item = bottomSet[-1]
+            bottomSet = bottomSet[:-1]
+            if(item[2] == 1 and item[3] == 1): #right edge
+                horizontalCoords = [item[0], item[1]]
+                
+    print(horizontalCoords)
+    
+    while(len(rightSet) > 0):
+            item = rightSet[-1]
+            rightSet = rightSet[:-1]        
+            if(item[2] == 0 and item[3] == 1): #bottom edge
+                verticalCoords = [item[0], item[1]]
+                
+    print(verticalCoords)
+    print([horizontalCoords, verticalCoords][0])
+    bottomLeftRslt= [-1,-1]
+    times = 0
+    while(bottomLeftRslt == [-1,-1]):
+        bottomLeftRslt = findFittingPart4( allImages[1,times,:,:,0], [horizontalCoords, verticalCoords], [1,1], False)
+        print(times, bottomLeftRslt)
+        if(times%10 == 0):
+            winsound.Beep(500,400)
+        times = times + 1
+        if(times == 50):
+            print('could not find an image at all...')
+            break
+    
+    if(bottomLeftRslt != [-1,-1]):
+            
+        showImageConcGT(allImages[0,times-1,:,:,:], allImages[1,times-1,:,:,:])
+        
+        bottomLeftGT = allImages[1,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,0]
+        bottomLeftSat = allImages[0,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,:]
+        
+        #plt.imshow(bottomLeftGT)
+        #plt.show
+        #plt.imshow(bottomLeftSat)
+        #plt.show
+        
+        finalPicSat[200:,200:,:] = bottomLeftSat
+        finalPicGT[200:,200:] = bottomLeftGT
+        
+        showImageConcGT(finalPicSat, finalPicGT)
+    
+        winsound.Beep(700,1100)
+        
+        
+        goodPictureCounter = np.load('counter.npy')
+        goodPictures = np.load('pictures.npy')
+        
+        
+        goodPictures[0,int(goodPictureCounter[0]),:,:,:] = finalPicSat
+        goodPictures[1,int(goodPictureCounter[0]),:,:,0] = finalPicGT
+        
+        goodPictureCounter[0] = goodPictureCounter[0] + 1
+        
+        np.save('counter.npy', goodPictureCounter)
+        np.save('pictures.npy', goodPictures)
 
 
 #%%
