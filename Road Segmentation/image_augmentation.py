@@ -9,147 +9,11 @@ from scipy import misc
 import numpy as np
 import matplotlib.pyplot as plt
 import winsound
+import threading
+from time import sleep
+from multiprocessing import Process, Lock, Queue
 
 
-# get image data:
-sateliteImages = np.zeros((100,400,400,3))
-sateliteImages = sateliteImages.astype(np.uint8)
-
-GTImages = np.zeros((100,400,400))
-GTImages = GTImages.astype(np.uint8)
-
-for i in range (1, 101):
-    zeros = ''
-    if(i < 10):
-        zeros = '00'
-    if(i < 100 and i >=10):
-        zeros = '0'
-    path = "./training/images/satImage_"+zeros+ str(i) +".png"
-    print(path)
-    image = misc.imread(path)
-    sateliteImages[i-1] = image
-    sateliteImages[i-1].astype(np.uint8)
-    
-    path = "./training/groundtruth/satImage_"+zeros+ str(i) +".png"
-    print(path)
-    image = misc.imread(path)
-    GTImages[i-1] = image
-    GTImages[i-1].astype(np.uint8)
-    
-    
-print(sateliteImages.shape)
-
-#%%
-
-#   rotating/mirroring images
-
-mirroredPic = np.zeros((800,400,400,3))
-mirroredPic = mirroredPic.astype(np.uint8)
-
-GTmirroredPic = np.zeros((800,400,400))
-GTmirroredPic = GTmirroredPic.astype(np.uint8)
-
-
-for i in range (0, 100):
-    mirroredPic[i] = np.flip(sateliteImages[i,:,:,:],0)
-    GTmirroredPic[i] = np.flip(GTImages[i,:,:],0)
-
-for i in range (100, 200):
-    mirroredPic[i] = np.flip(sateliteImages[i-100,:,:,:],1)
-    GTmirroredPic[i] = np.flip(GTImages[i-100,:,:],1)
-
-for i in range (200, 300):
-    GTmirroredPic[i,:,:] = np.transpose(GTImages[i-200,:,:])
-    for d in range (0, 3):
-        mirroredPic[i,:,:,d] = np.transpose(sateliteImages[i-200,:,:,d])
-    
-
-for i in range (300, 400):
-    mirroredPic[i] = np.flip(mirroredPic[i-100,:,:,:],0)
-    GTmirroredPic[i] = np.flip(GTmirroredPic[i-100,:,:],0)
-
-for i in range (400, 500):
-    mirroredPic[i] = np.flip(mirroredPic[i-200,:,:,:],1)
-    GTmirroredPic[i] = np.flip(GTmirroredPic[i-200,:,:],1)
-    
-for i in range (500, 600):
-    mirroredPic[i] = np.flip(mirroredPic[i-200,:,:,:],1)
-    GTmirroredPic[i] = np.flip(GTmirroredPic[i-200,:,:],1)
-    
-for i in range (600, 700):
-    mirroredPic[i] = np.flip(mirroredPic[i-600,:,:,:],1)
-    GTmirroredPic[i] = np.flip(GTmirroredPic[i-600,:,:],1)
-    
-mirroredPic[700:] = sateliteImages[0:]
-GTmirroredPic[700:] = GTImages[0:]
-    
-
-#%%
-
-def showImageConcGT(image, GT):
-    
-    if(len(GT.shape) < 3): #we have BW image
-        temp = np.zeros((GT.shape[0],GT.shape[1],3))
-        temp = temp.astype(np.uint8)
-        temp[:,:,0] = GT
-        GT= temp
-        
-    plt.imshow( np.concatenate((image[:,:,:], GT[:,:,:]), axis=1) )
-    plt.show()
-
-#%%
-
-
-
-#showImageConcGT(mirroredPic[-1,:,:,:], GTmirroredPic[-1,:,:])
-#showImageConcGT(mirroredPic[99,:,:,:], GTmirroredPic[99,:,:])
-#showImageConcGT(mirroredPic[199,:,:,:], GTmirroredPic[199,:,:])
-#showImageConcGT(mirroredPic[299,:,:,:], GTmirroredPic[299,:,:])
-#showImageConcGT(mirroredPic[399,:,:,:], GTmirroredPic[399,:,:])
-#showImageConcGT(mirroredPic[499,:,:,:], GTmirroredPic[499,:,:])
-#showImageConcGT(mirroredPic[599,:,:,:], GTmirroredPic[599,:,:])
-#showImageConcGT(mirroredPic[699,:,:,:], GTmirroredPic[699,:,:])
-
-
-#%%
-
-# adding noise to images
-
-#mirroredPicsNoisy = np.zeros((800,400,400,3))
-#mirroredPicsNoisy = mirroredPicsNoisy.astype(np.uint8)
-
-#for i in range(0, mirroredPic.shape[0]):
-#    noise = np.random.rand(400,400)*30
-#    temp = np.zeros((400,400,3))
-#    for t in range(0,3):
-#        temp[:,:,t] = noise
-#    
-#    noise = temp - 15
-#    noise = noise.astype(np.uint8)
-#    
-#    mirroredPicsNoisy[i,:,:,:] = mirroredPic[i,:,:,:] + noise
-
-
-
-#%%
-
-#augmentedImages = np.zeros((4800,400,400,3))
-#augmentedImages = augmentedImages.astype(np.uint8)
-
-#augmentedImages[0:100,:,:,:] = sateliteImages[0:,:,:,:]
-#augmentedImages[0:800,:,:,:] = mirroredPic[0:,:,:,:]
-#augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
-
-allImages = np.zeros((2,mirroredPic.shape[0],mirroredPic.shape[1],mirroredPic.shape[2], mirroredPic.shape[3] ))
-
-allImages[0,:,:,:,:] = mirroredPic
-allImages[1,:,:,:,0] = GTmirroredPic
-allImages[1,:,:,:,1] = GTmirroredPic
-allImages[1,:,:,:,2] = GTmirroredPic
-
-allImages =  allImages.astype(np.uint8)
-
-print(allImages.shape)
 
 #%%
 
@@ -510,6 +374,347 @@ def findFittingPart3( image, coords, edge, debug):
         i += 1
     
     return ret
+
+
+
+#%%
+
+def find_last_part_threaded( images, coords, result, thread_id, lock, debug):
+    
+    counter = 0
+    tolerance = 6
+    threshold = 100
+    toFitLeft = np.zeros((200))
+    toFitAbove = np.zeros((200))
+    
+    while(counter < images.shape[0]):
+        
+        st = str(thread_id) + ': working on picture '+str(thread_id * images.shape[0] + counter)
+        print(st)
+        
+        image = images [counter, :, :]
+        i = 0
+        j = 0        
+        
+        
+        for w in range(coords[0][0], coords[0][1]):
+            toFitLeft[w] = 1
+        for w in range(coords[1][0], coords[1][1]):
+            toFitAbove[w] = 1
+            
+        
+            
+        while(i < int(image.shape[0]/2)):
+            j=0
+            if(result[0:2] != [-1,-1]):
+                return result
+            while(j < int(image.shape[1]/2)):
+                tooManyRoads = False
+                
+                above = np.zeros((200))
+                above = above.astype(np.uint8)
+                
+                left = np.zeros((200))
+                left = left.astype(np.uint8)
+                
+                above[:] = image [ i, j : j + int(image.shape[1]/2)]
+                left[:] = image [ i: i + int(image.shape[0]/2), j ]               
+                
+                for w in range(0, above.shape[0]):
+                    
+                    if(above[w] > threshold):
+                        above[w] = 1
+                    else:
+                        above[w] = 0
+                    if(left[w] > threshold):
+                        left[w] = 1
+                    else:
+                        left[w] = 0
+                
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, above.shape[0]):
+                    if(above[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(above[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 1', nrOfRoads)
+                    tooManyRoads = True
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, left.shape[0]):
+                    if(left[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(left[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 2', nrOfRoads)
+                    tooManyRoads = True
+                
+                if(not tooManyRoads):
+                    aboveStart = 0
+                    leftStart = 0
+                    toFitLeftStart = 0
+                    toFitAboveStart = 0
+                    
+                    for w in range(0, above.shape[0]):
+                        if(above[w] == 1):
+                            aboveStart = w
+                            break
+                    
+                    for w in range(0, left.shape[0]):
+                        if(left[w] == 1):
+                            leftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitLeft.shape[0]):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitAbove.shape[0]):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveStart = w
+                            break
+                        
+                    
+                        
+                    aboveEnd = above.shape[0]-1
+                    leftEnd = left.shape[0]-1
+                    toFitLeftEnd = toFitLeft.shape[0]-1
+                    toFitAboveEnd = toFitAbove.shape[0]-1
+                    
+                    for w in range(above.shape[0]-1,-1,-1):
+                        if(above[w] == 1):
+                            aboveEnd = w
+                            break
+                    
+                    for w in range(left.shape[0]-1, -1,-1):
+                        if(left[w] == 1):
+                            leftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitLeft.shape[0]-1, -1,-1):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitAbove.shape[0]-1, -1,-1):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveEnd = w
+                            break
+                    
+                    if(debug):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                    
+                    if( abs(aboveStart - toFitAboveStart) + abs(aboveEnd - toFitAboveEnd) <= tolerance and abs(leftStart - toFitLeftStart) + abs(leftEnd - toFitLeftEnd) <= tolerance):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                        with lock:
+                            if(result[0:2] != [-1,-1]):
+                                return result
+                            result[0] = i
+                            result[1] = j
+                            result[2] = 50 * thread_id + counter
+                            return result
+                
+                
+                j = j + 1          
+            
+            i = i + 1
+        
+        counter = counter + 1
+    
+    return [-1,-1,-1]
+
+
+#%%
+
+def find_last_part_multiproc( images, coords, thread_id, queue, debug):
+    
+    counter = 0
+    tolerance = 6
+    threshold = 100
+    toFitLeft = np.zeros((200))
+    toFitAbove = np.zeros((200))
+    
+    while(counter < images.shape[0]):
+        
+        st = str(thread_id) + ': working on picture '+str(thread_id * images.shape[0] + counter)
+        print(st)
+        
+        image = images [counter, :, :]
+        i = 0
+        j = 0        
+        
+        
+        for w in range(coords[0][0], coords[0][1]):
+            toFitLeft[w] = 1
+        for w in range(coords[1][0], coords[1][1]):
+            toFitAbove[w] = 1
+            
+        
+            
+        while(i < int(image.shape[0]/2)):
+            j=0
+            
+            try:
+                result = queue.get(False)
+                if(result != [-1,-1,-1]): #some process found a solution
+                    queue.put(result)
+                    return
+            except:
+                result = [-1,-1,-1]
+            
+            
+            
+            while(j < int(image.shape[1]/2)):
+                tooManyRoads = False
+                
+                above = np.zeros((200))
+                above = above.astype(np.uint8)
+                
+                left = np.zeros((200))
+                left = left.astype(np.uint8)
+                
+                above[:] = image [ i, j : j + int(image.shape[1]/2)]
+                left[:] = image [ i: i + int(image.shape[0]/2), j ]               
+                
+                for w in range(0, above.shape[0]):
+                    
+                    if(above[w] > threshold):
+                        above[w] = 1
+                    else:
+                        above[w] = 0
+                    if(left[w] > threshold):
+                        left[w] = 1
+                    else:
+                        left[w] = 0
+                
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, above.shape[0]):
+                    if(above[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(above[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 1', nrOfRoads)
+                    tooManyRoads = True
+                
+                
+                nrOfRoads = 0
+                foundRoad = False
+                for w in range(0, left.shape[0]):
+                    if(left[w] == 1 and not foundRoad):
+                        nrOfRoads = nrOfRoads + 1
+                        foundRoad = True
+                    if(left[w] == 0 and foundRoad):
+                        foundRoad = False
+                
+                if(nrOfRoads != 1):
+                    if(debug):
+                        print('nr of roads is not one 2', nrOfRoads)
+                    tooManyRoads = True
+                
+                if(not tooManyRoads):
+                    aboveStart = 0
+                    leftStart = 0
+                    toFitLeftStart = 0
+                    toFitAboveStart = 0
+                    
+                    for w in range(0, above.shape[0]):
+                        if(above[w] == 1):
+                            aboveStart = w
+                            break
+                    
+                    for w in range(0, left.shape[0]):
+                        if(left[w] == 1):
+                            leftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitLeft.shape[0]):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftStart = w
+                            break
+                        
+                    
+                    for w in range(0, toFitAbove.shape[0]):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveStart = w
+                            break
+                        
+                    
+                        
+                    aboveEnd = above.shape[0]-1
+                    leftEnd = left.shape[0]-1
+                    toFitLeftEnd = toFitLeft.shape[0]-1
+                    toFitAboveEnd = toFitAbove.shape[0]-1
+                    
+                    for w in range(above.shape[0]-1,-1,-1):
+                        if(above[w] == 1):
+                            aboveEnd = w
+                            break
+                    
+                    for w in range(left.shape[0]-1, -1,-1):
+                        if(left[w] == 1):
+                            leftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitLeft.shape[0]-1, -1,-1):
+                        if(toFitLeft[w] == 1):
+                            toFitLeftEnd = w
+                            break
+                        
+                    
+                    for w in range(toFitAbove.shape[0]-1, -1,-1):
+                        if(toFitAbove[w] == 1):
+                            toFitAboveEnd = w
+                            break
+                    
+                    if(debug):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                    
+                    if( abs(aboveStart - toFitAboveStart) + abs(aboveEnd - toFitAboveEnd) <= tolerance and abs(leftStart - toFitLeftStart) + abs(leftEnd - toFitLeftEnd) <= tolerance):
+                        print('aboveStart, leftStart, toFitAboveStart, toFitLeftStart ',aboveStart, leftStart, toFitAboveStart, toFitLeftStart)
+                        print('aboveEnd, leftEnd, tofitAvobeEnd, toFitLeftEnd', aboveEnd, leftEnd, toFitAboveEnd, toFitLeftEnd)
+                        
+                        queue.put([i, j, ((images.shape[0] * thread_id) + counter)])
+                        
+                        return
+                
+                
+                j = j + 1          
+            
+            i = i + 1
+        
+        counter = counter + 1
+    
+    return
 
 
 
@@ -993,260 +1198,431 @@ def findFittingPart2( image, coords, edge, debug):
         i += 1
     
     return ret
+#%%
+
+def showImageConcGT(image, GT):
+    
+    if(len(GT.shape) < 3): #we have BW image
+        temp = np.zeros((GT.shape[0],GT.shape[1],3))
+        temp = temp.astype(np.uint8)
+        temp[:,:,0] = GT
+        GT= temp
+        
+    #plt.imshow( np.concatenate((image[:,:,:], GT[:,:,:]), axis=1) )
+    #plt.show()
 
 #%%
 
-#TODO: thread function here, args: allImages but only some part of the total set
-    #
-
-goodPictureCounter = np.load('counter.npy')
-goodPictures = np.load('pictures.npy')
-
-while(goodPictureCounter[0] < goodPictures.shape[1]):
+if __name__ == '__main__':
+    
+    lock = threading.Lock()
     
     
-    order = np.arange(allImages.shape[1])
-    np.random.shuffle(order)
+    
+    # get image data:
+    sateliteImages = np.zeros((100,400,400,3))
+    sateliteImages = sateliteImages.astype(np.uint8)
+    
+    GTImages = np.zeros((100,400,400))
+    GTImages = GTImages.astype(np.uint8)
+    
+    for i in range (1, 101):
+        zeros = ''
+        if(i < 10):
+            zeros = '00'
+        if(i < 100 and i >=10):
+            zeros = '0'
+        path = "./training/images/satImage_"+zeros+ str(i) +".png"
+        print(path)
+        image = misc.imread(path)
+        sateliteImages[i-1] = image
+        sateliteImages[i-1].astype(np.uint8)
+        
+        path = "./training/groundtruth/satImage_"+zeros+ str(i) +".png"
+        print(path)
+        image = misc.imread(path)
+        GTImages[i-1] = image
+        GTImages[i-1].astype(np.uint8)
+        
+        
+    print(sateliteImages.shape)
+    
+    #%%
+    
+    #   rotating/mirroring images
+    
+    mirroredPic = np.zeros((800,400,400,3))
+    mirroredPic = mirroredPic.astype(np.uint8)
+    
+    GTmirroredPic = np.zeros((800,400,400))
+    GTmirroredPic = GTmirroredPic.astype(np.uint8)
     
     
-    u=np.ones((3))*10
-    b=np.ones((3))*10
-    l=np.ones((3))*10
-    r=np.ones((3))*10
-    count = 0
+    for i in range (0, 100):
+        mirroredPic[i] = np.flip(sateliteImages[i,:,:,:],0)
+        GTmirroredPic[i] = np.flip(GTImages[i,:,:],0)
     
-    while( not (b[0] == 1 and r[0] == 1)):
+    for i in range (100, 200):
+        mirroredPic[i] = np.flip(sateliteImages[i-100,:,:,:],1)
+        GTmirroredPic[i] = np.flip(GTImages[i-100,:,:],1)
+    
+    for i in range (200, 300):
+        GTmirroredPic[i,:,:] = np.transpose(GTImages[i-200,:,:])
+        for d in range (0, 3):
+            mirroredPic[i,:,:,d] = np.transpose(sateliteImages[i-200,:,:,d])
         
-        count =( count + 1 )% allImages.shape[1]
+    
+    for i in range (300, 400):
+        mirroredPic[i] = np.flip(mirroredPic[i-100,:,:,:],0)
+        GTmirroredPic[i] = np.flip(GTmirroredPic[i-100,:,:],0)
+    
+    for i in range (400, 500):
+        mirroredPic[i] = np.flip(mirroredPic[i-200,:,:,:],1)
+        GTmirroredPic[i] = np.flip(GTmirroredPic[i-200,:,:],1)
+        
+    for i in range (500, 600):
+        mirroredPic[i] = np.flip(mirroredPic[i-200,:,:,:],1)
+        GTmirroredPic[i] = np.flip(GTmirroredPic[i-200,:,:],1)
+        
+    for i in range (600, 700):
+        mirroredPic[i] = np.flip(mirroredPic[i-600,:,:,:],1)
+        GTmirroredPic[i] = np.flip(GTmirroredPic[i-600,:,:],1)
+        
+    mirroredPic[700:] = sateliteImages[0:]
+    GTmirroredPic[700:] = GTImages[0:]
+        
+    
+    #%%
+    
+    
+    
+    
+    #showImageConcGT(mirroredPic[-1,:,:,:], GTmirroredPic[-1,:,:])
+    #showImageConcGT(mirroredPic[99,:,:,:], GTmirroredPic[99,:,:])
+    #showImageConcGT(mirroredPic[199,:,:,:], GTmirroredPic[199,:,:])
+    #showImageConcGT(mirroredPic[299,:,:,:], GTmirroredPic[299,:,:])
+    #showImageConcGT(mirroredPic[399,:,:,:], GTmirroredPic[399,:,:])
+    #showImageConcGT(mirroredPic[499,:,:,:], GTmirroredPic[499,:,:])
+    #showImageConcGT(mirroredPic[599,:,:,:], GTmirroredPic[599,:,:])
+    #showImageConcGT(mirroredPic[699,:,:,:], GTmirroredPic[699,:,:])
+    
+    
+    #%%
+    
+    # adding noise to images
+    
+    #mirroredPicsNoisy = np.zeros((800,400,400,3))
+    #mirroredPicsNoisy = mirroredPicsNoisy.astype(np.uint8)
+    
+    #for i in range(0, mirroredPic.shape[0]):
+    #    noise = np.random.rand(400,400)*30
+    #    temp = np.zeros((400,400,3))
+    #    for t in range(0,3):
+    #        temp[:,:,t] = noise
+    #    
+    #    noise = temp - 15
+    #    noise = noise.astype(np.uint8)
+    #    
+    #    mirroredPicsNoisy[i,:,:,:] = mirroredPic[i,:,:,:] + noise
+    
+    
+    
+    #%%
+    
+    #augmentedImages = np.zeros((4800,400,400,3))
+    #augmentedImages = augmentedImages.astype(np.uint8)
+    
+    #augmentedImages[0:100,:,:,:] = sateliteImages[0:,:,:,:]
+    #augmentedImages[0:800,:,:,:] = mirroredPic[0:,:,:,:]
+    #augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
+    
+    allImages = np.zeros((2,mirroredPic.shape[0],mirroredPic.shape[1],mirroredPic.shape[2], mirroredPic.shape[3] ))
+    
+    allImages[0,:,:,:,:] = mirroredPic
+    allImages[1,:,:,:,0] = GTmirroredPic
+    allImages[1,:,:,:,1] = GTmirroredPic
+    allImages[1,:,:,:,2] = GTmirroredPic
+    
+    allImages =  allImages.astype(np.uint8)
+    
+    print(allImages.shape)
+    
+    
+    #%%
+    
+    
+    
+    goodPictureCounter = np.load('counter.npy')
+    goodPictures = np.load('pictures.npy')
+    
+    while(goodPictureCounter[0] < goodPictures.shape[1]):
+        
+        print('now working on ', goodPictureCounter[0],'th picture in goodPictues set')
         
         
+        order = np.arange(allImages.shape[1])
+        np.random.shuffle(order)
         
         
-        u=np.zeros((3))
-        b=np.zeros((3))
-        l=np.zeros((3))
-        r=np.zeros((3))
+        u=np.ones((3))*10
+        b=np.ones((3))*10
+        l=np.ones((3))*10
+        r=np.ones((3))*10
+        count = 0
         
-        test = getRandomImagePartAsNewImage(allImages[:,order[count],:,:,:], False)
-        testGT = test[1,:,:,:]
-        testSat = test[0,:,:,:]
-        
-        showImageConcGT(testSat,testGT)
-        
-        s = findStreets(testGT)
-        sb = s
-        print(s)
-        
-        
-        while(len(s) > 0):
-            item = s[-1]
-            s = s[:-1]
-            print(item)
+        while( not (b[0] == 1 and r[0] == 1)):
             
-            if(item[2] == 0 and item[3] == 1): #bottom edge
-                b[0] = b[0]+1
-                b[1] = item[0]
-                b[2] = item[1]
-                
-            if(item[2] == 0 and item[3] == 0): #upper edge
-                u[0] = u[0]+1
-                u[1] = item[0]
-                u[2] = item[1]
-                
-            if(item[2] == 1 and item[3] == 0): #left edge
-                l[0] = l[0]+1
-                l[1] = item[0]
-                l[2] = item[1]
-                
-            if(item[2] == 1 and item[3] == 1): #right edge
-                r[0] = r[0]+1
-                r[1] = item[0]
-                r[2] = item[1]
-        
-        print(b[0] , r[0])
-        
-        if(b[0] <= 1 and r[0] <= 1): ## we're good, just look for at most one street matching now
-            x2 = int(b[2])
-            x1 = int(b[1])
-            print('extracted coords bottom: ' , [x1,x2])
-    
-            y2 = int(r[2])
-            y1 = int(r[1])
-            print('extracted coords right: ' , [y1,y2])
+            count =( count + 1 )% allImages.shape[1]
             
-    
-    imagenr=0
-    index = order[imagenr]
-    
-    plt.imshow(allImages[1,index,: , :, 0])
-    plt.show()
-    rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-    #print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
-    
-    order = np.arange(allImages.shape[1])
-    np.random.shuffle(order)
-    
-    
-    while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
-        imagenr =(imagenr + 1 )% allImages.shape[1]
+            
+            
+            
+            u=np.zeros((3))
+            b=np.zeros((3))
+            l=np.zeros((3))
+            r=np.zeros((3))
+            
+            test = getRandomImagePartAsNewImage(allImages[:,order[count],:,:,:], False)
+            testGT = test[1,:,:,:]
+            testSat = test[0,:,:,:]
+            
+            showImageConcGT(testSat,testGT)
+            
+            s = findStreets(testGT)
+            sb = s
+            print(s)
+            
+            
+            while(len(s) > 0):
+                item = s[-1]
+                s = s[:-1]
+                print(item)
+                
+                if(item[2] == 0 and item[3] == 1): #bottom edge
+                    b[0] = b[0]+1
+                    b[1] = item[0]
+                    b[2] = item[1]
+                    
+                if(item[2] == 0 and item[3] == 0): #upper edge
+                    u[0] = u[0]+1
+                    u[1] = item[0]
+                    u[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 0): #left edge
+                    l[0] = l[0]+1
+                    l[1] = item[0]
+                    l[2] = item[1]
+                    
+                if(item[2] == 1 and item[3] == 1): #right edge
+                    r[0] = r[0]+1
+                    r[1] = item[0]
+                    r[2] = item[1]
+            
+            print(b[0] , r[0])
+            
+            if(b[0] <= 1 and r[0] <= 1): ## we're good, just look for at most one street matching now
+                x2 = int(b[2])
+                x1 = int(b[1])
+                print('extracted coords bottom: ' , [x1,x2])
+        
+                y2 = int(r[2])
+                y1 = int(r[1])
+                print('extracted coords right: ' , [y1,y2])
+                
+        
+        imagenr=0
         index = order[imagenr]
+        
         #plt.imshow(allImages[1,index,: , :, 0])
         #plt.show()
         rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
-        #print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
-    
-    rightIndex = index
-    
-    imagenr=0
-    index = order[imagenr]
-    
-    plt.imshow(allImages[1,index,: , :, 0])
-    plt.show()
-    rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
-    #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
-    
-    order = np.arange(allImages.shape[1])
-    np.random.shuffle(order)
-    
-    
-    while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
-        imagenr =(imagenr + 1 )% allImages.shape[1]
+        #print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
+        
+        order = np.arange(allImages.shape[1])
+        np.random.shuffle(order)
+        
+        
+        while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
+            imagenr =(imagenr + 1 )% allImages.shape[1]
+            index = order[imagenr]
+            #plt.imshow(allImages[1,index,: , :, 0])
+            #plt.show()
+            rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
+            #print('nr',  index, 'res',rsltRight ,'looking for match',[y1, y2])
+        
+        rightIndex = index
+        
+        imagenr=0
         index = order[imagenr]
+        
         #plt.imshow(allImages[1,index,: , :, 0])
         #plt.show()
         rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
         #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
-    
-    
         
-    plt.imshow(allImages[1,index,: , :,0])
-    plt.show()
-    
-    
-    
-    extractedGTRight = allImages[1, rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,0]
-    extractedSatRight = allImages[0,rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,:]
-    
-    extractedGT = allImages[1,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,0]
-    extractedSat = allImages[0,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,:]
-    
-    showImageConcGT(extractedSat, extractedGT)
-    showImageConcGT(extractedSatRight, extractedGTRight)
-    
-    bottomLeftSat = np.zeros((200,200,3))
-    bottomLeftSat = bottomLeftSat.astype(np.uint8)
-    bottomLeftGT = np.zeros((200,200))
-    bottomLeftGT = bottomLeftGT.astype(np.uint8)
-    
-    
-    tempSat = np.concatenate((testSat, extractedSat), axis = 0)
-    rightSat = np.concatenate((extractedSatRight, bottomLeftSat), axis = 0)
-    
-    print(testGT.shape)
-    print(extractedGT.shape)
-    tempGT = np.concatenate((testGT[:,:,0], extractedGT), axis = 0)
-    rightGT = np.concatenate((extractedGTRight, bottomLeftGT), axis = 0)
-    
-    showImageConcGT(tempSat, tempGT)
-    showImageConcGT(rightSat, rightGT)
-    
-    finalPicSat = np.concatenate((tempSat, rightSat), axis = 1)
-    finalPicGT = np.concatenate((tempGT, rightGT), axis = 1)
-    
-    showImageConcGT(finalPicSat, finalPicGT)
-    
-    
-    
-    print('new pictures streets', findStreets(tempGT))
-    
-    showImageConcGT(finalPicSat, finalPicGT)
-    bottomSet = findStreets(extractedGT)
-    rightSet = findStreets(extractedGTRight)
-    
-    print(bottomSet)
-    plt.imshow(extractedGT)
-    plt.show
-    print(rightSet)
-    plt.imshow(extractedGTRight)
-    plt.show
-    
-    while(len(bottomSet) > 0):
-            item = bottomSet[-1]
-            bottomSet = bottomSet[:-1]
-            if(item[2] == 1 and item[3] == 1): #right edge
-                horizontalCoords = [item[0], item[1]]
-                
-    print(horizontalCoords)
-    
-    while(len(rightSet) > 0):
-            item = rightSet[-1]
-            rightSet = rightSet[:-1]        
-            if(item[2] == 0 and item[3] == 1): #bottom edge
-                verticalCoords = [item[0], item[1]]
-                
-    print(verticalCoords)
-    print([horizontalCoords, verticalCoords][0])
-    bottomLeftRslt= [-1,-1]
-    times = 0
-    while(bottomLeftRslt == [-1,-1]):
-        bottomLeftRslt = findFittingPart4( allImages[1,times,:,:,0], [horizontalCoords, verticalCoords], [1,1], False)
-        print(times, bottomLeftRslt)
-        if(times%10 == 0):
-            winsound.Beep(500,400)
-        times = times + 1
-        if(times == 50):
-            print('could not find an image at all...')
-            break
-    
-    if(bottomLeftRslt != [-1,-1]):
+        order = np.arange(allImages.shape[1])
+        np.random.shuffle(order)
+        
+        
+        while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
+            imagenr =(imagenr + 1 )% allImages.shape[1]
+            index = order[imagenr]
+            #plt.imshow(allImages[1,index,: , :, 0])
+            #plt.show()
+            rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
+            #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
+        
+        
             
-        showImageConcGT(allImages[0,times-1,:,:,:], allImages[1,times-1,:,:,:])
+        #plt.imshow(allImages[1,index,: , :,0])
+        #plt.show()
         
-        bottomLeftGT = allImages[1,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,0]
-        bottomLeftSat = allImages[0,times-1,bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,:]
         
-        #plt.imshow(bottomLeftGT)
-        #plt.show
-        #plt.imshow(bottomLeftSat)
-        #plt.show
         
-        finalPicSat[200:,200:,:] = bottomLeftSat
-        finalPicGT[200:,200:] = bottomLeftGT
+        extractedGTRight = allImages[1, rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,0]
+        extractedSatRight = allImages[0,rightIndex,rsltRight[0]:rsltRight[0]+200 , rsltRight[1]:rsltRight[1]+200 ,:]
+        
+        extractedGT = allImages[1,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,0]
+        extractedSat = allImages[0,index,rslt[0]:rslt[0]+200 , rslt[1]:rslt[1]+200 ,:]
+        
+        showImageConcGT(extractedSat, extractedGT)
+        showImageConcGT(extractedSatRight, extractedGTRight)
+        
+        bottomLeftSat = np.zeros((200,200,3))
+        bottomLeftSat = bottomLeftSat.astype(np.uint8)
+        bottomLeftGT = np.zeros((200,200))
+        bottomLeftGT = bottomLeftGT.astype(np.uint8)
+        
+        
+        tempSat = np.concatenate((testSat, extractedSat), axis = 0)
+        rightSat = np.concatenate((extractedSatRight, bottomLeftSat), axis = 0)
+        
+        print(testGT.shape)
+        print(extractedGT.shape)
+        tempGT = np.concatenate((testGT[:,:,0], extractedGT), axis = 0)
+        rightGT = np.concatenate((extractedGTRight, bottomLeftGT), axis = 0)
+        
+        showImageConcGT(tempSat, tempGT)
+        showImageConcGT(rightSat, rightGT)
+        
+        finalPicSat = np.concatenate((tempSat, rightSat), axis = 1)
+        finalPicGT = np.concatenate((tempGT, rightGT), axis = 1)
         
         showImageConcGT(finalPicSat, finalPicGT)
+        
+        
+        
+        print('new pictures streets', findStreets(tempGT))
+        
+        showImageConcGT(finalPicSat, finalPicGT)
+        bottomSet = findStreets(extractedGT)
+        rightSet = findStreets(extractedGTRight)
+        
+        print(bottomSet)
+        #plt.imshow(extractedGT)
+        #plt.show
+        print(rightSet)
+        #plt.imshow(extractedGTRight)
+        #plt.show
+        
+        while(len(bottomSet) > 0):
+                item = bottomSet[-1]
+                bottomSet = bottomSet[:-1]
+                if(item[2] == 1 and item[3] == 1): #right edge
+                    horizontalCoords = [item[0], item[1]]
+                    
+        print(horizontalCoords)
+        
+        while(len(rightSet) > 0):
+                item = rightSet[-1]
+                rightSet = rightSet[:-1]        
+                if(item[2] == 0 and item[3] == 1): #bottom edge
+                    verticalCoords = [item[0], item[1]]
+                    
+        print(verticalCoords)
+        print([horizontalCoords, verticalCoords][0])
+        bottomLeftRslt= [-1,-1,1]
+        
+        queue = Queue()
+        
+        p0 = Process(target=find_last_part_multiproc, args=(allImages[1,0:50,:,:,0], [horizontalCoords, verticalCoords], 0, queue, False))
+        p1 = Process(target=find_last_part_multiproc, args=(allImages[1,50:100,:,:,0], [horizontalCoords, verticalCoords], 1, queue, False))
+        
+        p0.start()
+        p1.start()
+        
+        while( p0.is_alive() and p1.is_alive()):
+            sleep(3)
+        
+        
+        p0.join
+        p1.join
+        try:
+            bottomLeftRslt = queue.get(True,0.5)
+        except:
+            print('ERROR, somehow did not get result from queue')
+            sleep(5)
+        
+        
+        #while(bottomLeftRslt == [-1,-1]):
+        #    bottomLeftRslt = findFittingPart4( allImages[1,times,:,:,0], [horizontalCoords, verticalCoords], [1,1], False)
+        #    print(times, bottomLeftRslt)
+        #    if(times%10 == 0):
+        #        winsound.Beep(500,400)
+        #    times = times + 1
+        #    if(times == 50):
+        #        print('could not find an image at all...')
+        #        break
+        
+        if(bottomLeftRslt[0:2] != [-1,-1]):
+                
+            showImageConcGT(allImages[0,bottomLeftRslt[2],:,:,:], allImages[1,bottomLeftRslt[2],:,:,:])
+            
+            bottomLeftGT = allImages[1,bottomLeftRslt[2],bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,0]
+            bottomLeftSat = allImages[0,bottomLeftRslt[2],bottomLeftRslt[0]:bottomLeftRslt[0]+200 , bottomLeftRslt[1]:bottomLeftRslt[1]+200 ,:]
+            
+            #plt.imshow(bottomLeftGT)
+            #plt.show
+            #plt.imshow(bottomLeftSat)
+            #plt.show
+            
+            finalPicSat[200:,200:,:] = bottomLeftSat
+            finalPicGT[200:,200:] = bottomLeftGT
+            
+            showImageConcGT(finalPicSat, finalPicGT)
+        
+            winsound.Beep(700,1100)
+            
+            
+            goodPictureCounter = np.load('counter.npy')
+            goodPictures = np.load('pictures.npy')
+            
+            
+            goodPictures[0,int(goodPictureCounter[0]),:,:,:] = finalPicSat
+            goodPictures[1,int(goodPictureCounter[0]),:,:,0] = finalPicGT
+            
+            goodPictureCounter[0] = goodPictureCounter[0] + 1
+            
+            np.save('counter.npy', goodPictureCounter)
+            np.save('pictures.npy', goodPictures)
     
-        winsound.Beep(700,1100)
-        
-        
-        goodPictureCounter = np.load('counter.npy')
-        goodPictures = np.load('pictures.npy')
-        
-        
-        goodPictures[0,int(goodPictureCounter[0]),:,:,:] = finalPicSat
-        goodPictures[1,int(goodPictureCounter[0]),:,:,0] = finalPicGT
-        
-        goodPictureCounter[0] = goodPictureCounter[0] + 1
-        
-        np.save('counter.npy', goodPictureCounter)
-        np.save('pictures.npy', goodPictures)
-
-
-#%%
-
-#%%
-
-
-functionTest = np.ones((400,400))
-functionTest = functionTest.astype(np.uint8)
-
-
-functionTest[150:170, 50:] = 240
-functionTest[50:, 130:190] = 240
-
-
-
-testCoords = [[100,121],[80, 140]]
-
-testrslt = findFittingPart4(functionTest, testCoords,[1,1], False)
-print(testrslt)
-
+    
+    #%%
+    
+    #%%
+    
+    
+    #functionTest = np.ones((400,400))
+    #functionTest = functionTest.astype(np.uint8)
+    
+    
+    #functionTest[150:170, 50:] = 240
+    #functionTest[50:, 130:190] = 240
+    
+    
+    
+    #testCoords = [[100,121],[80, 140]]
+    
+    #testrslt = findFittingPart4(functionTest, testCoords,[1,1], False)
+    #print(testrslt)
+    
