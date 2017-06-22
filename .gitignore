@@ -2,3 +2,10 @@
 *.meta
 *.index
 *.png
+*.index
+Road Segmentation/tmp/model8.ckpt.data-00000-of-00001
+*.data-00000-of-00001
+Road Segmentation/tmp/1498115146/summary/train/events.out.tfevents.1498115148.DESKTOP-NJ473NJ
+*.DESKTOP-NJ473NJ
+*.npy
+Road Segmentation/pictures.npy
