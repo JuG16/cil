@@ -30,6 +30,7 @@ import tensorflow as tf
 
 
 
+
 # Extract patches from a given image
 def img_crop(im, w, h):
     list_patches = []
@@ -176,8 +177,7 @@ def make_img_overlay(img, predicted_img):
 #needs to be called main because tf.app.run() runs this
 def main(unused_argv):
     
-        validation_data = X_test
-        validation_labels = y_test
+        
 
         # Get input dimensionality.
         IMAGE_HEIGHT = X_train.shape[1]
@@ -202,7 +202,7 @@ def main(unused_argv):
         # parameters that controls external inputs.
         # It returns "logits" layer, i.e., the top-most layer of the network.
         #logits = krizshevsky_model(input_samples_op, dropout_rate, mode)
-        logits = test_model(input_samples_op, dropout_rate, mode)
+        logits = model(input_samples_op, mode)
 
         #logits = small_cnn_model(input_samples_op, dropout_rate, mode)
 
@@ -327,7 +327,7 @@ def main(unused_argv):
             # Training loop.
             for batch_samples, batch_labels in training_batches:
                 step = tf.train.global_step(sess, global_step)
-                if (step%checkpoint_every_step) == 0:
+                if (step%checkpoint_every_step) == 0 and not train:
 
                     ckpt_save_path = saver.save(sess, os.path.join(model_dir, 'model'), global_step)
                     np.save("latest_save_path", ckpt_save_path)
@@ -351,7 +351,7 @@ def main(unused_argv):
                 train_summary_writer.add_summary(train_summary, step)
 
                 # Occasionally print status messages.
-                if (step%print_every_step) == 0:
+                if (step%print_every_step) == 0 and not train:
                     # Calculate average training accuracy.
                     accuracy_avg_value_training = counter_correct_predictions_training/(print_every_step*batch_size)
                     loss_avg_value_training = counter_loss_training/(print_every_step)
@@ -372,6 +372,8 @@ def main(unused_argv):
                     
 
                 if (step%evaluate_every_step) == 0 and train:
+                    validation_data = X_test
+                    validation_labels = y_test
                     # Calculate average validation accuracy.
                     (loss_avg_value_validation, accuracy_avg_value_validation) = do_evaluation(sess, validation_data, validation_labels)
                     # Report
@@ -381,10 +383,6 @@ def main(unused_argv):
                     validation_loss.append(loss_avg_value_validation)
 
                     print("[%d/%d] [Validation] Accuracy: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, loss_avg_value_validation))
-
-                if (step%switch_data_every_step) == 0:
-                    data_index = data_index + 1
-                    switchData(data_index)
 
 #utils, helper functions
 
@@ -429,153 +427,103 @@ def data_iterator_samples(data, batch_size):
 
 #models
 
-def test_model(input_layer, dropout_rate, mode):
+def model(input_layer, mode):
 
     with tf.name_scope("network"):
 
-    #krizshevsky impolementation
-    #see https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
-
     #input img_patch_size*img_patch_size
-        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=32,kernel_size=[2, 2],padding="same",activation=tf.nn.relu)
+        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=128,kernel_size=[2, 2],padding="same",activation=tf.nn.relu)
         with tf.name_scope("pooling1"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=64, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
+        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
         with tf.name_scope("pooling2"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=64, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
-        #256 / (4 * 2 * 2) = 256 / 16 = 16
-        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * 64)]) #16 * 16 * 256 oom
-        with tf.name_scope("dense1"): net = tf.layers.dense(inputs=net, units=32, activation=tf.nn.relu)
+        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
+        with tf.name_scope("cnn4"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
+      
+        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * 128)]) #16 * 16 * 256 oom
+       
         with tf.name_scope("dropout1"): net = tf.layers.dropout(inputs=net, rate=dropout_rate, training=mode)
-        with tf.name_scope("dense2"): net = tf.layers.dense(inputs=net, units=8, activation=tf.nn.relu)
-        with tf.name_scope("dropout2"): net = tf.layers.dropout(inputs=net, rate=dropout_rate, training=mode)
-        with tf.name_scope("logits"): net = tf.layers.dense(inputs=net, units=2)
+        with tf.name_scope("dense1"): net = tf.layers.dense(inputs=net, units=8, activation=tf.nn.relu)
+        with tf.name_scope("logits"): net = tf.layers.dense(inputs=net, units=NUM_LABELS)
         
         return net
 
+train = False
 
-import gc
-def switchData(data_index):
-
-    print("Loading new augmentation data...")
-    global X_train
-    #free full memory for X_train
-    del X_train
-    #collect any unnecessary data
-    gc.collect()
-
-    #import new data
-    if data_index % (augmentation_factor + 1) == 0:
-        X_train = np.load("X_train.npy")
-        print("Successfully reloaded Xtrain0")
-    else:
-        if train:
-            X_train = np.load("Xtrainaug4." + str(data_index % (augmentation_factor + 1)) + ".npy")
-        else:
-            X_train = np.load("Xaug4."  + str(data_index % (augmentation_factor + 1)) + ".npy")
-
-        print("Successfully loaded new augmentation data " + str(data_index % (augmentation_factor + 1)))
-
-
-train = True
-
-learning_rate = 0.0001 #0.0005
-epsilon=1e-08
-beta1=0.9
-beta2=0.999
-batch_size = 32
-num_epochs = 100
-print_every_step = 201
-evaluate_every_step = 201 
-checkpoint_every_step = 402 #402: data_length / batchsize -> checkpoint after 1 epoch
+learning_rate = 0.001 #0.001
+epsilon=1e-08 #1e-08
+beta1=0.9 #0.9
+beta2=0.999 #0.999
+batch_size = 80 #64
+num_epochs = 120
+print_every_step = 200
+evaluate_every_step = 200
+checkpoint_every_step = 200
 log_dir = './tmp/'
-dropout_rate = 0.5
+dropout_rate = 0.85 #0.75
 
 
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
-VALIDATION_SIZE = 5  # Size of the validation set.
-
-
 
 
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
-IMG_PATCH_SIZE = 4
-
-FLAGS = tf.app.flags.FLAGS
-
-#decides how many augmentations are coming after X_train0 is used again
-augmentation_factor = 2
-switch_data_every_step = 9999999#checkpoint_every_step
+IMG_PATCH_SIZE = 20
 
 
-data_dir = 'training/'
-train_data_filename = data_dir + 'images/'
-train_labels_filename = data_dir + 'groundtruth/' 
+if __name__ == '__main__':
 
-# Extract it into numpy arrays.
-train_data = extract_data(train_data_filename, TRAINING_SIZE)
-train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+    FLAGS = tf.app.flags.FLAGS
 
-print("train_data shape: " + str(train_data.shape))
-print("train_labels shape: " + str(train_labels.shape))
 
-c0 = 0
-c1 = 0
-for i in range(len(train_labels)):
-    if train_labels[i][0] == 1:
-        c0 = c0 + 1
+    data_dir = 'training/'
+    train_data_filename = data_dir + 'images/'
+    train_labels_filename = data_dir + 'groundtruth/' 
+
+    # Extract it into numpy arrays.
+    train_data = extract_data(train_data_filename, TRAINING_SIZE)
+    train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+
+
+    train_labels_number_not_array = []
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            train_labels_number_not_array.append(0)
+        else:
+            train_labels_number_not_array.append(1)
+    train_labels = np.asarray(train_labels_number_not_array)
+    if train:
+        X_train, X_test, y_train, y_test = train_test_split(train_data, train_labels)
+        print("Xtrain shape: " + str(X_train.shape))
+        print("Starting training")
+
+
+        #turn gpu off:
+        #CUDA_VISIBLE_DEVICES=""
+
+        #create a new saving directory
+        timestamp = str(int(time.time()))
+        model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
+
+        #run tensorflow
+        tf.app.run()
+
     else:
-        c1 = c1 + 1
-print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+        X_train = train_data
+        y_train = train_labels
 
-print ('Balancing training data...')
-min_c = min(c0, c1)
-idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
-idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
-new_indices = idx0[0:min_c] + idx1[0:min_c]
-print (len(new_indices))
-print (train_data.shape)
-train_data = train_data[new_indices,:,:,:]
-train_labels = train_labels[new_indices]
+        print("Xtrain shape: " + str(X_train.shape))
+        print("Starting training")
 
 
-train_size = train_labels.shape[0]
-print("Train size: " + str(train_size))
+        #turn gpu off:
+        #CUDA_VISIBLE_DEVICES=""
 
-c0 = 0
-c1 = 0
-for i in range(len(train_labels)):
-    if train_labels[i][0] == 1:
-        c0 = c0 + 1
-    else:
-        c1 = c1 + 1
-print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+        #create a new saving directory
+        timestamp = str(int(time.time()))
+        model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
 
-
-
-train_labels_number_not_array = []
-for i in range(len(train_labels)):
-    if train_labels[i][0] == 1:
-        train_labels_number_not_array.append(0)
-    else:
-        train_labels_number_not_array.append(1)
-train_labels = np.asarray(train_labels_number_not_array)
-print(train_labels)
-X_train, X_test, y_train, y_test = train_test_split(train_data, train_labels)
-
-print("Xtrain shape: " + str(X_train.shape))
-print("Starting training")
-
-
-#turn gpu off:
-#CUDA_VISIBLE_DEVICES=""
-
-#create a new saving directory
-timestamp = str(int(time.time()))
-model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
-
-#run tensorflow
-tf.app.run()
+        #run tensorflow
+        tf.app.run()
