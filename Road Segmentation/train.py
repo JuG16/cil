@@ -10,6 +10,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import datetime
 import math
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
 from tensorflow.contrib import learn
 import tensorflow as tf
 
@@ -228,6 +229,15 @@ def main(unused_argv):
             # Return list of predictions (useful for making a submission)
             predictions = tf.argmax(logits, 1, name="predictions")
             # Return a bool tensor with shape [batch_size] that is true for the
+            predicted = tf.cast(predictions, tf.int32)
+            actual = input_label_op
+            TP = tf.count_nonzero(predicted * actual)
+            TN = tf.count_nonzero((predicted - 1) * (actual - 1))
+            FP = tf.count_nonzero(predicted * (actual - 1))
+            FN = tf.count_nonzero((predicted - 1) * actual)
+            precision = TP / (TP + FP)
+            recall = TP / (TP + FN)
+            f1 = 2 * precision * recall / (precision + recall)
             # correct predictions.
             correct_predictions = tf.nn.in_top_k(logits, input_label_op, 1)
             # Calculate the accuracy per minibatch.
@@ -248,15 +258,17 @@ def main(unused_argv):
             counter_accuracy = 0.0
             counter_loss = 0.0
             counter_batches = 0
+            counter_f1 = 0.0
             for batch_samples, batch_labels in batches:
                 counter_batches += 1
                 feed_dict = {input_samples_op: batch_samples,
                              input_label_op: batch_labels,
                              mode: False}
-                results = sess.run([loss, num_correct_predictions], feed_dict=feed_dict)
+                results = sess.run([loss, num_correct_predictions, f1], feed_dict=feed_dict)
                 counter_loss += results[0]
                 counter_accuracy += results[1]
-            return (counter_loss/counter_batches, counter_accuracy/(counter_batches*batch_size))
+                counter_f1 += results[2]
+            return (counter_loss/counter_batches, counter_accuracy/(counter_batches*batch_size), counter_f1/counter_batches)
 
         # Create summary ops for monitoring the training.
         # Each summary op annotates a node in the computational graph and collects
@@ -351,7 +363,7 @@ def main(unused_argv):
                 train_summary_writer.add_summary(train_summary, step)
 
                 # Occasionally print status messages.
-                if (step%print_every_step) == 0 and not train:
+                if (step%print_every_step) == 0:
                     # Calculate average training accuracy.
                     accuracy_avg_value_training = counter_correct_predictions_training/(print_every_step*batch_size)
                     loss_avg_value_training = counter_loss_training/(print_every_step)
@@ -375,14 +387,14 @@ def main(unused_argv):
                     validation_data = X_test
                     validation_labels = y_test
                     # Calculate average validation accuracy.
-                    (loss_avg_value_validation, accuracy_avg_value_validation) = do_evaluation(sess, validation_data, validation_labels)
+                    (loss_avg_value_validation, accuracy_avg_value_validation, f1_report) = do_evaluation(sess, validation_data, validation_labels)
                     # Report
                     summary_report = sess.run(summaries_evaluation, feed_dict={accuracy_avg:accuracy_avg_value_validation, loss_avg:loss_avg_value_validation})
                     valid_summary_writer.add_summary(summary_report, step)
                     validation_list.append(accuracy_avg_value_validation)
                     validation_loss.append(loss_avg_value_validation)
 
-                    print("[%d/%d] [Validation] Accuracy: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, loss_avg_value_validation))
+                    print("[%d/%d] [Validation] Accuracy: %.3f, F1: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, f1_report, loss_avg_value_validation))
 
 #utils, helper functions
 
@@ -470,7 +482,7 @@ TRAINING_SIZE = 100
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
-IMG_PATCH_SIZE = 20
+IMG_PATCH_SIZE = 16
 
 
 if __name__ == '__main__':
@@ -485,6 +497,38 @@ if __name__ == '__main__':
     # Extract it into numpy arrays.
     train_data = extract_data(train_data_filename, TRAINING_SIZE)
     train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
+    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+
+    print ('Balancing training data...')
+    min_c = min(c0, c1)
+    idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
+    idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
+    new_indices = idx0[0:min_c] + idx1[0:min_c]
+    print (len(new_indices))
+    print (train_data.shape)
+    train_data = train_data[new_indices,:,:,:]
+    train_labels = train_labels[new_indices]
+
+
+    train_size = train_labels.shape[0]
+    print("Train size: " + str(train_size))
+
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
+    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
 
     train_labels_number_not_array = []

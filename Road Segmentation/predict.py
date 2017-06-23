@@ -10,6 +10,82 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 import scipy.misc
+import time
+import re
+import math
+from matplotlib import pyplot as plt
+
+
+foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
+
+# assign a label to a patch
+def patch_to_label(patch):
+    df = np.mean(patch)
+    if df > foreground_threshold:
+        return 1
+    else:
+        return 0
+
+
+def smooth_labels(labels):
+    #we have squared images
+    w = int(math.sqrt(len(labels)))
+    h = w
+
+    #transform it into a minipicture array
+    labelpicture = np.zeros((w,h))
+    idx = 0
+    for i in range(0,h):
+        for j in range(0,w):
+            labelpicture
+            if labels[idx] > 0.5:
+                l = 1
+            else:
+                l = 0
+            labelpicture[j, i] = l
+            idx += 1
+    for i in range(0,h):
+        for j in range(0,w):
+            #check if not on the border of the picture
+            if not (i == 0 or j == 0 or i == h-1 or j == w-1):
+                #put all neighbors in a list from top left to bottom right
+                neighbors = [labelpicture[i-1, j-1], labelpicture[i-1, j], labelpicture[i-1, j+1], labelpicture[i, j-1], labelpicture[i, j+1],  labelpicture[i+1, j-1], labelpicture[i+1, j], labelpicture[i+1, j+1]]
+                
+                #delete if it has less than three neighbors
+                if sum(neighbors) < 3:
+                    labelpicture[i,j] = 0
+
+                #if all neighbors are streets, you are a street
+                if sum(neighbors) == 8:
+                    labelpicture[i,j] = 1
+
+    smoothed_labels = []
+    for i in range(0,h):
+        for j in range(0,w):
+            smoothed_labels.append(labelpicture[j,i])
+    return smoothed_labels
+    
+
+
+
+def mask_to_submission_strings(image_filename):
+    """Reads a single image and outputs the strings that should go into the submission file"""
+    img_number = int(re.search(r"\d+", image_filename).group(0))
+    im = mpimg.imread(image_filename)
+    patch_size = 16
+    for j in range(0, im.shape[1], patch_size):
+        for i in range(0, im.shape[0], patch_size):
+            patch = im[i:i + patch_size, j:j + patch_size]
+            label = patch_to_label(patch)
+            yield("{:03d}_{}_{},{}".format(img_number, j, i, label))
+
+
+def masks_to_submission(submission_filename, *image_filenames):
+    """Converts images into a submission file"""
+    with open(submission_filename, 'w') as f:
+        f.write('id,prediction\n')
+        for fn in image_filenames[0:]:
+            f.writelines('{}\n'.format(s) for s in mask_to_submission_strings(fn))
 
 def label_to_img(imgwidth, imgheight, w, h, labels):
     array_labels = np.zeros([imgwidth, imgheight])
@@ -47,7 +123,6 @@ def extract_test_data(parent_dir):
         filepath = parent_dir + "test_" + str(i) + "/test_" + str(i) + ".png"
         print ('Loading ' + filepath)
         img = mpimg.imread(filepath)
-        img.resize((400,400,3))
         imgs.append(img)
 
 
@@ -89,19 +164,27 @@ def main(unused_argv):
     imgs = np.split(y_val, 50)
     print(len(imgs))
     i = 1
-    for predicted_labels in imgs:
-        img = label_to_img(400, 400, IMG_PATCH_SIZE, IMG_PATCH_SIZE, predicted_labels)
-        #Image.fromarray(img).save(open('./predict_output/' + "mask_" + str(i) + ".png", 'w'))
 
-        scipy.misc.imsave('./predict_output/' + "mask_" + str(i) + ".png", img)
+    submission_filename = 'submission-'+(time.strftime('%Y-%m-%d-%a-%Hh%Mmin')) + "0.83.csv"
+    image_filenames = []
+    for predicted_labels in imgs:
+
+        predicted_labels = smooth_labels(predicted_labels)
+        img = label_to_img(608, 608, IMG_PATCH_SIZE, IMG_PATCH_SIZE, predicted_labels)
+        #Image.fromarray(img).save(open('./predict_output/' + "mask_" + str(i) + ".png", 'w'))
+        image_filename = './predict_output/' + "mask_" + str(i) + ".png"
+        print(image_filename)
+        scipy.misc.imsave(image_filename, img)
+        image_filenames.append(image_filename)
         i += 1
+    masks_to_submission(submission_filename, *image_filenames)
 
 
 
 
 if __name__ == '__main__':
 
-    modelPath = './tmp/1498134747/model-35800'
+    modelPath = './tmp/1498199407/model-24000'
 
     X_val = extract_test_data('./test_set_images/')
     print("X_val shape: " + str(X_val.shape))
