@@ -222,6 +222,7 @@ def main(unused_argv):
         with tf.name_scope("cross_entropy_loss"):
             # Takes predictions of the network (logits) and ground-truth labels
             # (input_label_op), and calculates the cross-entropy loss.
+
             loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=input_label_op))
 
         # Accuracy calculations.
@@ -444,34 +445,42 @@ def model(input_layer, mode):
     with tf.name_scope("network"):
 
     #input img_patch_size*img_patch_size
-        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=128,kernel_size=[2, 2],padding="same",activation=tf.nn.relu)
+        filter_size = 192 #192
+        #init_bias2d = None     
+        init_bias2d = tf.contrib.layers.xavier_initializer_conv2d(uniform=True, seed=None, dtype=tf.float32) #none
+        #init_kernel2d = tf.contrib.layers.xavier_initializer_conv2d(uniform=True, seed=None, dtype=tf.float32) #xavier
+        init_kernel2d = None
+        #init_bias = None
+        init_bias = tf.contrib.layers.xavier_initializer(uniform=True, seed=None, dtype=tf.float32) #none
+        #init_kernel = tf.contrib.layers.xavier_initializer(uniform=True, seed=None, dtype=tf.float32) #xavier
+        init_kernel = None
+        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=filter_size,kernel_size=[2, 2],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
         with tf.name_scope("pooling1"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
+        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
         with tf.name_scope("pooling2"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
-        with tf.name_scope("cnn4"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu)
+        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+        with tf.name_scope("cnn4"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
       
-        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * 128)]) #16 * 16 * 256 oom
+        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * filter_size)]) #16 * 16 * 256 oom
        
         with tf.name_scope("dropout1"): net = tf.layers.dropout(inputs=net, rate=dropout_rate, training=mode)
-        with tf.name_scope("dense1"): net = tf.layers.dense(inputs=net, units=8, activation=tf.nn.relu)
+        with tf.name_scope("dense1"): net = tf.layers.dense(inputs=net, units=8, activation=tf.nn.relu, bias_initializer= init_bias, kernel_initializer=init_kernel)
         with tf.name_scope("logits"): net = tf.layers.dense(inputs=net, units=NUM_LABELS)
         
         return net
 
-train = False
+train = True
 
-learning_rate = 0.001 #0.001
+learning_rate = 0.0001 #0.0001
 epsilon=1e-08 #1e-08
 beta1=0.9 #0.9
 beta2=0.999 #0.999
-batch_size = 80 #64
-num_epochs = 120
-print_every_step = 200
-evaluate_every_step = 200
-checkpoint_every_step = 200
+num_epochs = 1000
+print_every_step = 400
+evaluate_every_step = 400
+checkpoint_every_step = 400
 log_dir = './tmp/'
-dropout_rate = 0.85 #0.75
+dropout_rate = 0.9 #0.9
 
 
 PIXEL_DEPTH = 255
