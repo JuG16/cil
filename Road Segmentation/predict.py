@@ -83,6 +83,8 @@ def smooth_labels(labels):
         labelpicture = np.rot90(labelpicture)
 
     
+    #does not seem to improve
+    #street detection
     streetpicture = np.zeros((w,h))
     for dim in range(4):
         for i in range(0, h):
@@ -107,6 +109,9 @@ def smooth_labels(labels):
 
         labelpicture = np.rot90(labelpicture)
         streetpicture = np.rot90(streetpicture)
+
+    #uncomment if you want to enable street detection
+    #labelpicture = streetpicture
 
 
     smoothed_labels = []
