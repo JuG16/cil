@@ -15,6 +15,8 @@ import re
 import math
 from matplotlib import pyplot as plt
 
+from scipy.ndimage import gaussian_filter
+
 
 foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
 
@@ -44,20 +46,68 @@ def smooth_labels(labels):
                 l = 0
             labelpicture[j, i] = l
             idx += 1
-    for i in range(0,h):
-        for j in range(0,w):
-            #check if not on the border of the picture
-            if not (i == 0 or j == 0 or i == h-1 or j == w-1):
-                #put all neighbors in a list from top left to bottom right
-                neighbors = [labelpicture[i-1, j-1], labelpicture[i-1, j], labelpicture[i-1, j+1], labelpicture[i, j-1], labelpicture[i, j+1],  labelpicture[i+1, j-1], labelpicture[i+1, j], labelpicture[i+1, j+1]]
-                
-                #delete if it has less than three neighbors
-                if sum(neighbors) < 3:
-                    labelpicture[i,j] = 0
+    #check if not on the border of the picture      
+    for i in range(1,h-1):
+        for j in range(1,w-1):
+            #put all neighbors in a list from top left to bottom right
+            neighbors = [labelpicture[i-1, j-1], labelpicture[i-1, j], labelpicture[i-1, j+1], labelpicture[i, j-1], labelpicture[i, j+1],  labelpicture[i+1, j-1], labelpicture[i+1, j], labelpicture[i+1, j+1]]
+            
+            #delete if it has less than three neighbors
+            if sum(neighbors) < 2:
+                labelpicture[i,j] = 0
 
-                #if all neighbors are streets, you are a street
-                if sum(neighbors) == 8:
-                    labelpicture[i,j] = 1
+            #if all neighbors are streets, you are a street
+            if sum(neighbors) >= len(neighbors) -1 :
+                labelpicture[i,j] = 1
+    
+    for dim in range(4):
+
+        #CHECK all 4 borders
+        i = 0
+        for j in range(1,w-1):
+
+            neighbors = [labelpicture[i, j-1], labelpicture[i, j+1],  labelpicture[i+1, j-1], labelpicture[i+1, j], labelpicture[i+1, j+1]]
+            if sum(neighbors) < 2:
+                labelpicture[i,j] = 0
+            #if all neighbors are streets, you are a street
+            if sum(neighbors) == len(neighbors):
+                labelpicture[i,j] = 1
+
+        #check if not on the border of the picture      
+        for i in range(1,h-1):
+            for j in range(1,w-1):
+                #enlist all neighbors on top and on the side (not bottom)
+                neighbors = [labelpicture[i-1, j-1], labelpicture[i-1, j], labelpicture[i-1, j+1], labelpicture[i, j-1], labelpicture[i, j+1]]
+                if (sum(neighbors) == 0):
+                    labelpicture[i,j] = 0
+        labelpicture = np.rot90(labelpicture)
+
+    
+    streetpicture = np.zeros((w,h))
+    for dim in range(4):
+        for i in range(0, h):
+            street_streak = 0
+            background_streak = 0
+            for j in range(0,w):
+                if labelpicture[i,j] == 1:
+                    streetpicture[i,j] = 1
+                    street_streak += 1
+                    background_streak = 0
+                else:
+                    background_streak += 1
+                    if street_streak > 3:
+                        street_streak +=1
+                        streetpicture[i,j] = 1
+
+                if background_streak > 2:
+                    for b in range(background_streak):
+                        streetpicture[i,j-b] = 0
+                    street_streak = 0
+
+
+        labelpicture = np.rot90(labelpicture)
+        streetpicture = np.rot90(streetpicture)
+
 
     smoothed_labels = []
     for i in range(0,h):
