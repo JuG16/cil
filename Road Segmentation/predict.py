@@ -239,7 +239,7 @@ def main(unused_argv):
 
 if __name__ == '__main__':
 
-    modelPath = './tmp/1498199407/model-24000'
+    modelPath = './tmp/1498306546/model-138800'#131200 #135600 #138800 #148000
 
     X_val = extract_test_data('./test_set_images/')
     print("X_val shape: " + str(X_val.shape))
