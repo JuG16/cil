@@ -178,7 +178,7 @@ def make_img_overlay(img, predicted_img):
 #needs to be called main because tf.app.run() runs this
 def main(unused_argv):
     
-        
+        best_f1 = 0.84 #score to beat, gets printed if better
 
         # Get input dimensionality.
         IMAGE_HEIGHT = X_train.shape[1]
@@ -394,6 +394,9 @@ def main(unused_argv):
                     valid_summary_writer.add_summary(summary_report, step)
                     validation_list.append(accuracy_avg_value_validation)
                     validation_loss.append(loss_avg_value_validation)
+                    if f1_report > best_f1:
+                        best_f1 = f1_report
+                        print("Found better F1 score!")
 
                     print("[%d/%d] [Validation] Accuracy: %.3f, F1: %.3f, Loss: %.3f" % (epoch, step, accuracy_avg_value_validation, f1_report, loss_avg_value_validation))
 
@@ -445,7 +448,7 @@ def model(input_layer, mode):
     with tf.name_scope("network"):
 
     #input img_patch_size*img_patch_size
-        filter_size = 192 #192
+        filter_size = 512 #192
         #init_bias2d = None     
         init_bias2d = tf.contrib.layers.xavier_initializer_conv2d(uniform=True, seed=None, dtype=tf.float32) #none
         #init_kernel2d = tf.contrib.layers.xavier_initializer_conv2d(uniform=True, seed=None, dtype=tf.float32) #xavier
@@ -454,14 +457,18 @@ def model(input_layer, mode):
         init_bias = tf.contrib.layers.xavier_initializer(uniform=True, seed=None, dtype=tf.float32) #none
         #init_kernel = tf.contrib.layers.xavier_initializer(uniform=True, seed=None, dtype=tf.float32) #xavier
         init_kernel = None
-        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=filter_size,kernel_size=[2, 2],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+        with tf.name_scope("cnn1"):net = tf.layers.conv2d(inputs=input_layer,filters=64,kernel_size=[2, 2],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+       
+        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
         with tf.name_scope("pooling1"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn2"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=256, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+        with tf.name_scope("cnn4"):net = tf.layers.conv2d( inputs=net,filters=256, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
         with tf.name_scope("pooling2"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
-        with tf.name_scope("cnn3"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
-        with tf.name_scope("cnn4"):net = tf.layers.conv2d( inputs=net,filters=filter_size, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
+    
+        #with tf.name_scope("pooling3"): net = tf.layers.max_pooling2d(inputs=net, pool_size=[2, 2], strides=2)
+        with tf.name_scope("cnn6"):net = tf.layers.conv2d( inputs=net,filters=128, kernel_size=[1, 1],padding="same",activation=tf.nn.relu, bias_initializer= init_bias2d, kernel_initializer=init_kernel2d)
       
-        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * filter_size)]) #16 * 16 * 256 oom
+        with tf.name_scope("flatten"): net = tf.reshape(net, [-1, int(IMG_PATCH_SIZE/4  * IMG_PATCH_SIZE/4 * 128)]) #16 * 16 * 256 oom
        
         with tf.name_scope("dropout1"): net = tf.layers.dropout(inputs=net, rate=dropout_rate, training=mode)
         with tf.name_scope("dense1"): net = tf.layers.dense(inputs=net, units=8, activation=tf.nn.relu, bias_initializer= init_bias, kernel_initializer=init_kernel)
@@ -475,6 +482,7 @@ learning_rate = 0.0001 #0.0001
 epsilon=1e-08 #1e-08
 beta1=0.9 #0.9
 beta2=0.999 #0.999
+batch_size = 80 #80... 64, 120 are worse
 num_epochs = 1000
 print_every_step = 400
 evaluate_every_step = 400
@@ -486,7 +494,6 @@ dropout_rate = 0.9 #0.9
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
-
 
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
@@ -551,7 +558,6 @@ if __name__ == '__main__':
         X_train, X_test, y_train, y_test = train_test_split(train_data, train_labels)
         print("Xtrain shape: " + str(X_train.shape))
         print("Starting training")
-
 
         #turn gpu off:
         #CUDA_VISIBLE_DEVICES=""
