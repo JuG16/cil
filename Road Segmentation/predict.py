@@ -17,6 +17,26 @@ from matplotlib import pyplot as plt
 
 from scipy.ndimage import gaussian_filter
 
+class Street():
+  
+    def __init__(self, dim, j, i, length):
+        
+        self.dim = dim
+        self.i = i
+        self.j = j
+        self.length = length
+        
+    def isNeighbor(self, otherStreet):
+        if otherStreet.dim == self.dim:
+            if otherStreet.i + 1 == self.i or otherStreet.i - 1 == self.i:
+                if otherStreet.length >= self.length:
+                    if self.j in range(otherStreet.j, otherStreet.j + otherStreet.length):
+                        return True
+                else:
+                    if otherStreet.i in range(self.j, self.j + self.length):
+                        return True
+        return False
+
 
 foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
 
@@ -82,31 +102,83 @@ def smooth_labels(labels):
                     labelpicture[i,j] = 0
         labelpicture = np.rot90(labelpicture)
 
-    
-    #does not seem to improve
-    #street detection
+
     streetpicture = np.zeros((w,h))
-    for dim in range(4):
-        for i in range(0, h):
-            street_streak = 0
-            background_streak = 0
-            for j in range(0,w):
-                if labelpicture[i,j] == 1:
-                    streetpicture[i,j] = 1
-                    street_streak += 1
-                    background_streak = 0
-                else:
-                    background_streak += 1
-                    if street_streak > 3:
-                        street_streak +=1
-                        streetpicture[i,j] = 1
+    rotations = 0
+    streets = []
 
-                if background_streak > 2:
-                    for b in range(background_streak):
-                        streetpicture[i,j-b] = 0
-                    street_streak = 0
+    # while(True):
+
+    #     labelpicture90 = np.rot90(labelpicture)
+        
+        
+    #     best_i = 0
+    #     best_j = 0
+    #     best_dim = 0
+    #     best_streak = 0
+
+    #     for dim in range(2):
+
+    #         for i in range(0, h):
+    #             street_streak = 0
+                
+    #             for j in range(0,w):
+    #                 if labelpicture[i,j] == 1 and dim == 0 or labelpicture90[i,j] == 1 and dim ==1:
+    #                     street_streak += 1
+    #                 else:
+    #                     if street_streak > best_streak:
+    #                         best_i = i
+    #                         best_j = j - street_streak
+    #                         best_streak = street_streak
+    #                         best_dim = dim
+    #                         #print("Found better streak: " + str(street_streak))
+    #                     street_streak = 0
+    #             if street_streak > best_streak:
+    #                 best_i = i
+    #                 best_j = w-street_streak
+    #                 best_streak = street_streak
+    #                 best_dim = dim
+    #                 #print("Found better streak: " + str(street_streak))
+    #                 #print("i: " + str(best_i) + " j: " + str(best_j) + " dim: " + str(best_dim))
+
+            
+    #     #stop if only found small road
+    #     if best_streak < 7:
+    #         break  
+               
+    #     new_street = Street(best_dim, best_j, best_i, best_streak)
+    #     for street in streets:
+    #         if new_street.isNeighbor(street):
+    #             #extend to street that is larger
+    #             best_j = street.j
+    #             best_streak = street.length
+    #             new_street = Street(best_dim, best_j, best_i, best_streak)
+    #             break
+    #     streets.append(new_street)
+
+    #     #update pictures
+            
+    #     if best_dim == 1:
+    #         rotations += 1
+    #         labelpicture = labelpicture90
+    #         streetpicture = np.rot90(streetpicture)
 
 
+    #     streetpicture[best_i, best_j: best_j +best_streak] = 1
+    #     labelpicture[best_i, best_j: best_j +best_streak] = 0
+
+    #     #plt.imshow(streetpicture)
+    #     #plt.show()
+
+
+
+        
+
+        
+    labelpicture = streetpicture
+
+    #rotate back in shape
+    for i in range(4- rotations % 4):
         labelpicture = np.rot90(labelpicture)
         streetpicture = np.rot90(streetpicture)
 
@@ -220,7 +292,7 @@ def main(unused_argv):
     print(len(imgs))
     i = 1
 
-    submission_filename = 'submission-'+(time.strftime('%Y-%m-%d-%a-%Hh%Mmin')) + "0.83.csv"
+    submission_filename = 'submission-'+(time.strftime('%Y-%m-%d-%a-%Hh%Mmin')) + "0.85.csv"
     image_filenames = []
     for predicted_labels in imgs:
 

@@ -319,7 +319,7 @@ def main(unused_argv):
         valid_summary_writer = tf.summary.FileWriter(valid_summary_dir, sess.graph)
 
         # Create a saver for writing training checkpoints.
-        saver = tf.train.Saver(max_to_keep=20)
+        saver = tf.train.Saver(max_to_keep=100)
         
         import matplotlib.pyplot as plt
         plt.figure()
@@ -340,7 +340,7 @@ def main(unused_argv):
             # Training loop.
             for batch_samples, batch_labels in training_batches:
                 step = tf.train.global_step(sess, global_step)
-                if (step%checkpoint_every_step) == 0 and not train:
+                if (step%checkpoint_every_step) == 0 and not train and epoch > 260:
 
                     ckpt_save_path = saver.save(sess, os.path.join(model_dir, 'model'), global_step)
                     np.save("latest_save_path", ckpt_save_path)
@@ -476,14 +476,14 @@ def model(input_layer, mode):
         
         return net
 
-train = True
+train = False
 
 learning_rate = 0.0001 #0.0001
 epsilon=1e-08 #1e-08
 beta1=0.9 #0.9
 beta2=0.999 #0.999
 batch_size = 80 #80... 64, 120 are worse
-num_epochs = 1000
+num_epochs = 380
 print_every_step = 400
 evaluate_every_step = 400
 checkpoint_every_step = 400
