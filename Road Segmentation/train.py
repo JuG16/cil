@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 from tensorflow.contrib import learn
 import tensorflow as tf
+from matplotlib import pyplot as plt
 
 
 import gzip
@@ -476,7 +477,7 @@ def model(input_layer, mode):
         
         return net
 
-train = False
+train = True
 
 learning_rate = 0.0001 #0.0001
 epsilon=1e-08 #1e-08
@@ -565,6 +566,33 @@ if __name__ == '__main__':
         #create a new saving directory
         timestamp = str(int(time.time()))
         model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
+
+        print("Augmenting images by rotating 4 times by 90deg..")
+        y_train = np.tile(y_train, 4)
+        rotated_images = np.zeros((X_train.shape[0] * 4, X_train.shape[1], X_train.shape[2], X_train.shape[3]))
+        for i in range(X_train.shape[0]):
+
+            rot = X_train[i]
+            rotated_images[i] = rot
+            plt.imshow(rot)
+            plt.show()
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 1] = rot
+            plt.imshow(rot)
+            plt.show()
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 2] = rot
+            plt.imshow(rot)
+            plt.show()
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 3] = rot
+            plt.imshow(rot)
+            plt.show()
+
+        y_train = np.tile(y_train, 4)
+        X_train = rotated_images
+        print("Xtrain shape: " + str(X_train.shape))
+
 
         #run tensorflow
         tf.app.run()
