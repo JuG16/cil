@@ -72,6 +72,29 @@ def extract_data(filename, num_images):
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
 
     return numpy.asarray(data)
+
+def extract_data_and_labels_from_augmentation(filename):
+    """Extract the images into a 4D tensor [image index, y, x, channels].
+    Values are rescaled from [0, 255] down to [-0.5, 0.5].
+    """
+    imgs = []
+    pictures = np.load(filename)
+
+    imgs = pictures[0]
+    gt_imgs = pictures[1]
+    num_images = len(imgs)
+    IMG_WIDTH = imgs[0].shape[0]
+    IMG_HEIGHT = imgs[0].shape[1]
+    N_PATCHES_PER_IMAGE = (IMG_WIDTH/IMG_PATCH_SIZE)*(IMG_HEIGHT/IMG_PATCH_SIZE)
+
+    gt_patches = [img_crop(gt_imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
+    data = numpy.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
+    labels = numpy.asarray([value_to_class(numpy.mean(data[i])) for i in range(len(data))])
+
+    img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
+    data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
+
+    return (numpy.asarray(data), labels.astype(numpy.float32))
         
 # Assign a label to a patch v
 def value_to_class(v):
@@ -179,7 +202,7 @@ def make_img_overlay(img, predicted_img):
 #needs to be called main because tf.app.run() runs this
 def main(unused_argv):
     
-        best_f1 = 0.84 #score to beat, gets printed if better
+        best_f1 = 0.85 #score to beat, gets printed if better
 
         # Get input dimensionality.
         IMAGE_HEIGHT = X_train.shape[1]
@@ -515,6 +538,12 @@ if __name__ == '__main__':
     train_data = extract_data(train_data_filename, TRAINING_SIZE)
     train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
 
+    for i in range(1,3):
+        print("Importing augmentation pictures " + str(i))
+        augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures" +str(i)+ ".npy")
+        train_data = np.concatenate((train_data, augmentation_data))
+        train_labels = np.concatenate((train_labels, augmentation_labels))
+
     c0 = 0
     c1 = 0
     for i in range(len(train_labels)):
@@ -558,7 +587,7 @@ if __name__ == '__main__':
     if train:
         X_train, X_test, y_train, y_test = train_test_split(train_data, train_labels)
         print("Xtrain shape: " + str(X_train.shape))
-        print("Starting training")
+        
 
         #turn gpu off:
         #CUDA_VISIBLE_DEVICES=""
@@ -566,6 +595,36 @@ if __name__ == '__main__':
         #create a new saving directory
         timestamp = str(int(time.time()))
         model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
+
+        print("Augmenting images by rotating 4 times by 90deg..")
+        y_train = np.tile(y_train, 4)
+        rotated_images = np.zeros((X_train.shape[0] * 4, X_train.shape[1], X_train.shape[2], X_train.shape[3]))
+        for i in range(X_train.shape[0]):
+
+            rot = X_train[i]
+            rotated_images[i] = rot
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 1] = rot
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 2] = rot
+            rot = np.rot90(rot)
+            rotated_images[i + X_train.shape[0] * 3] = rot
+
+        y_train = np.tile(y_train, 4)
+        X_train = rotated_images
+        print("Xtrain shape: " + str(X_train.shape))
+
+        print("Starting training")
+        #run tensorflow
+        tf.app.run()
+
+    else:
+        X_train = train_data
+        y_train = train_labels
+
+        print("Xtrain shape: " + str(X_train.shape))
+        
+
 
         print("Augmenting images by rotating 4 times by 90deg..")
         y_train = np.tile(y_train, 4)
@@ -594,20 +653,9 @@ if __name__ == '__main__':
         print("Xtrain shape: " + str(X_train.shape))
 
 
-        #run tensorflow
-        tf.app.run()
-
-    else:
-        X_train = train_data
-        y_train = train_labels
-
-        print("Xtrain shape: " + str(X_train.shape))
-        print("Starting training")
-
-
         #turn gpu off:
         #CUDA_VISIBLE_DEVICES=""
-
+        print("Starting training")
         #create a new saving directory
         timestamp = str(int(time.time()))
         model_dir = os.path.abspath(os.path.join(log_dir, timestamp))
