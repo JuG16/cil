@@ -175,7 +175,7 @@ def smooth_labels(labels):
         
 
         
-    labelpicture = streetpicture
+    #labelpicture = streetpicture
 
     #rotate back in shape
     for i in range(4- rotations % 4):
