@@ -111,7 +111,7 @@ def extract_data_and_labels_from_augmentation(filename):
         
 # Assign a label to a patch v
 def value_to_class(v):
-    foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
+    foreground_threshold = 0.15 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = numpy.sum(v)
     if df > foreground_threshold:
         return [0, 1]
@@ -140,8 +140,6 @@ def extract_labels(filename, start, num_images, train):
                             for jj in range(img.shape[1]-IMG_PATCH_SIZE):
                                 img_shifted[ii,jj] = img[ii+y, jj+x]
                         gt_imgs.append(img_shifted)
-                        plt.imshow(img_shifted)
-                        plt.show()
                 
         else:
             print ('File ' + image_filename + ' does not exist')
@@ -549,7 +547,7 @@ TRAINING_SIZE = 100
 #how many times the img will be copied and shifted differently in the two directions
 #will create shift^2 pictures per img
 #if shift == 1, then it will not be shifted, if shift == IMG_PATCH_SIZE, every possible
-shift = 4
+shift = 2
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
