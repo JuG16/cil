@@ -48,18 +48,31 @@ def img_crop(im, w, h):
             list_patches.append(im_patch)
     return list_patches
 
-def extract_data(filename, num_images):
+def extract_data(filename, start, num_images, train):
     """Extract the images into a 4D tensor [image index, y, x, channels].
     Values are rescaled from [0, 255] down to [-0.5, 0.5].
     """
     imgs = []
-    for i in range(1, num_images+1):
+    for i in range(start, start + num_images+1):
         imageid = "satImage_%.3d" % i
         image_filename = filename + imageid + ".png"
         if os.path.isfile(image_filename):
             print ('Loading ' + image_filename)
             img = mpimg.imread(image_filename)
             imgs.append(img)
+            if train:
+
+                for y in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                    for x in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                        if y == 0 and x == 0:
+                            continue
+                        #shift image
+                        img_shifted = np.zeros((img.shape[0]-IMG_PATCH_SIZE,img.shape[1]-IMG_PATCH_SIZE, img.shape[2]))
+                        for ii in range(img.shape[0]-IMG_PATCH_SIZE):
+                            for jj in range(img.shape[1]-IMG_PATCH_SIZE):
+                                img_shifted[ii,jj] = img[ii+y, jj+x]
+                        imgs.append(img_shifted)
+            
         else:
             print ('File ' + image_filename + ' does not exist')
 
@@ -106,16 +119,30 @@ def value_to_class(v):
         return [1, 0]
 
 # Extract label images
-def extract_labels(filename, num_images):
+def extract_labels(filename, start, num_images, train):
     """Extract the labels into a 1-hot matrix [image index, label index]."""
     gt_imgs = []
-    for i in range(1, num_images+1):
+    for i in range(start , start +num_images+1):
         imageid = "satImage_%.3d" % i
         image_filename = filename + imageid + ".png"
         if os.path.isfile(image_filename):
             print ('Loading ' + image_filename)
             img = mpimg.imread(image_filename)
             gt_imgs.append(img)
+            if train:
+                for y in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                    for x in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                        if y == 0 and x == 0:
+                            continue
+                        #shift image
+                        img_shifted = np.zeros((img.shape[0]-IMG_PATCH_SIZE,img.shape[1]-IMG_PATCH_SIZE))
+                        for ii in range(img.shape[0]-IMG_PATCH_SIZE):
+                            for jj in range(img.shape[1]-IMG_PATCH_SIZE):
+                                img_shifted[ii,jj] = img[ii+y, jj+x]
+                        gt_imgs.append(img_shifted)
+                        plt.imshow(img_shifted)
+                        plt.show()
+                
         else:
             print ('File ' + image_filename + ' does not exist')
 
@@ -364,7 +391,7 @@ def main(unused_argv):
             # Training loop.
             for batch_samples, batch_labels in training_batches:
                 step = tf.train.global_step(sess, global_step)
-                if (step%checkpoint_every_step) == 0 and not train and epoch > 260:
+                if (step%checkpoint_every_step) == 0 and not train:
 
                     ckpt_save_path = saver.save(sess, os.path.join(model_dir, 'model'), global_step)
                     np.save("latest_save_path", ckpt_save_path)
@@ -507,7 +534,7 @@ epsilon=1e-08 #1e-08
 beta1=0.9 #0.9
 beta2=0.999 #0.999
 batch_size = 80 #80... 64, 120 are worse
-num_epochs = 380
+num_epochs = 100
 print_every_step = 400
 evaluate_every_step = 400
 checkpoint_every_step = 400
@@ -519,6 +546,10 @@ PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
 
+#how many times the img will be copied and shifted differently in the two directions
+#will create shift^2 pictures per img
+#if shift == 1, then it will not be shifted, if shift == IMG_PATCH_SIZE, every possible
+shift = 4
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
@@ -535,14 +566,30 @@ if __name__ == '__main__':
     train_labels_filename = data_dir + 'groundtruth/' 
 
     # Extract it into numpy arrays.
-    train_data = extract_data(train_data_filename, TRAINING_SIZE)
-    train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
 
-    for i in range(1,3):
-        print("Importing augmentation pictures " + str(i))
-        augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures" +str(i)+ ".npy")
-        train_data = np.concatenate((train_data, augmentation_data))
-        train_labels = np.concatenate((train_labels, augmentation_labels))
+    if train:
+        
+        train_data = extract_data(train_data_filename,1, 74, True)
+        test_data =  extract_data(train_data_filename, 76, 24, False)
+        train_labels = extract_labels(train_labels_filename, 1, 74, True)
+        test_labels = extract_labels(train_labels_filename, 76, 24, False)
+
+        test_labels_number_not_array = []
+        for i in range(len(test_labels)):
+            if test_labels[i][0] == 1:
+                test_labels_number_not_array.append(0)
+            else:
+                test_labels_number_not_array.append(1)
+        test_labels = np.asarray(test_labels_number_not_array)
+    else:
+        train_data = extract_data(train_data_filename,1, 100, True)
+        train_labels = extract_labels(train_labels_filename, 1, 100, True)
+
+        for i in range(1,1):
+            print("Importing augmentation pictures " + str(i))
+            augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures" +str(i)+ ".npy")
+            train_data = np.concatenate((train_data, augmentation_data))
+            train_labels = np.concatenate((train_labels, augmentation_labels))
 
     c0 = 0
     c1 = 0
@@ -560,8 +607,8 @@ if __name__ == '__main__':
     new_indices = idx0[0:min_c] + idx1[0:min_c]
     print (len(new_indices))
     print (train_data.shape)
-    train_data = train_data[new_indices,:,:,:]
-    train_labels = train_labels[new_indices]
+    #train_data = train_data[new_indices,:,:,:]
+    #train_labels = train_labels[new_indices]
 
 
     train_size = train_labels.shape[0]
@@ -584,9 +631,25 @@ if __name__ == '__main__':
         else:
             train_labels_number_not_array.append(1)
     train_labels = np.asarray(train_labels_number_not_array)
+
+    X_train = train_data
+    y_train = train_labels
+
+    #shuffle X_train
+    indices = np.arange(X_train.shape[0])
+    indices = np.random.shuffle(indices)
+    X_train[:] = X_train[indices]
+    y_train[:] = y_train[indices]
+
+    print("Xtrain shape: " + str(X_train.shape))
     if train:
-        X_train, X_test, y_train, y_test = train_test_split(train_data, train_labels)
-        print("Xtrain shape: " + str(X_train.shape))
+        X_test = test_data
+        y_test = test_labels
+
+        indices = np.arange(X_test.shape[0])
+        indices = np.random.shuffle(indices)
+        X_test[:] = X_test[indices]
+        y_test[:] = y_test[indices]
         
 
         #turn gpu off:
@@ -619,13 +682,8 @@ if __name__ == '__main__':
         tf.app.run()
 
     else:
-        X_train = train_data
-        y_train = train_labels
-
-        print("Xtrain shape: " + str(X_train.shape))
         
-
-
+        
         print("Augmenting images by rotating 4 times by 90deg..")
         y_train = np.tile(y_train, 4)
         rotated_images = np.zeros((X_train.shape[0] * 4, X_train.shape[1], X_train.shape[2], X_train.shape[3]))
@@ -633,21 +691,12 @@ if __name__ == '__main__':
 
             rot = X_train[i]
             rotated_images[i] = rot
-            plt.imshow(rot)
-            plt.show()
             rot = np.rot90(rot)
             rotated_images[i + X_train.shape[0] * 1] = rot
-            plt.imshow(rot)
-            plt.show()
             rot = np.rot90(rot)
             rotated_images[i + X_train.shape[0] * 2] = rot
-            plt.imshow(rot)
-            plt.show()
             rot = np.rot90(rot)
             rotated_images[i + X_train.shape[0] * 3] = rot
-            plt.imshow(rot)
-            plt.show()
-
         y_train = np.tile(y_train, 4)
         X_train = rotated_images
         print("Xtrain shape: " + str(X_train.shape))
