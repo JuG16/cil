@@ -311,8 +311,8 @@ def main(unused_argv):
 
 if __name__ == '__main__':
 
-    modelPath = './tmp/1498306546/model-138800'#131200 #135600 #138800 #148000
-
+    #modelPath = './tmp/1498306546/model-138800'#131200 #135600 #138800 #148000
+    modelPath = './tmp/1498479479/model-320000'#236000 320000 428000
     X_val = extract_test_data('./test_set_images/')
     print("X_val shape: " + str(X_val.shape))
 
