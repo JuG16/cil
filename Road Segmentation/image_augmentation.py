@@ -1290,6 +1290,54 @@ if __name__ == '__main__':
         
     mirroredPic[700:] = sateliteImages[0:]
     GTmirroredPic[700:] = GTImages[0:]
+    
+    mirroredPicTraining = np.zeros((600,400,400,3))
+    mirroredPicValidation = np.zeros((200,400,400,3))
+    GTmirroredPicTraining = np.zeros((600,400,400))
+    GTmirroredPicValidation = np.zeros((200,400,400))
+    
+    mirroredPicTraining = mirroredPicTraining.astype(np.uint8)
+    mirroredPicValidation = mirroredPicValidation.astype(np.uint8)
+    GTmirroredPicTraining = GTmirroredPicTraining.astype(np.uint8)
+    GTmirroredPicValidation = GTmirroredPicValidation.astype(np.uint8)
+    
+    mirroredPicTraining [0:75, :,:,:] = mirroredPic[0:75,:,:,:]
+    mirroredPicTraining [75:150, :,:,:] = mirroredPic[100:175,:,:,:]
+    mirroredPicTraining [150:225, :,:,:] = mirroredPic[200:275,:,:,:]
+    mirroredPicTraining [225:300, :,:,:] = mirroredPic[300:375,:,:,:]
+    mirroredPicTraining [300:375, :,:,:] = mirroredPic[400:475,:,:,:]
+    mirroredPicTraining [375:450, :,:,:] = mirroredPic[500:575,:,:,:]
+    mirroredPicTraining [450:525, :,:,:] = mirroredPic[600:675,:,:,:]
+    mirroredPicTraining [525:600, :,:,:] = mirroredPic[700:775,:,:,:]
+    
+    GTmirroredPicTraining [0:75, :,:] = GTmirroredPic[0:75,:,:]
+    GTmirroredPicTraining [75:150, :,:] = GTmirroredPic[100:175,:,:]
+    GTmirroredPicTraining [150:225, :,:] = GTmirroredPic[200:275,:,:]
+    GTmirroredPicTraining [225:300, :,:] = GTmirroredPic[300:375,:,:]
+    GTmirroredPicTraining [300:375, :,:] = GTmirroredPic[400:475,:,:]
+    GTmirroredPicTraining [375:450, :,:] = GTmirroredPic[500:575,:,:]
+    GTmirroredPicTraining [450:525, :,:] = GTmirroredPic[600:675,:,:]
+    GTmirroredPicTraining [525:600, :,:] = GTmirroredPic[700:775,:,:]
+    
+    
+    mirroredPicValidation[0:25,:,:,:] = mirroredPic[75:100,:,:,:]
+    mirroredPicValidation[25:50,:,:,:] = mirroredPic[175:200,:,:,:]
+    mirroredPicValidation[50:75,:,:,:] = mirroredPic[275:300,:,:,:]
+    mirroredPicValidation[75:100,:,:,:] = mirroredPic[375:400,:,:,:]
+    mirroredPicValidation[100:125,:,:,:] = mirroredPic[475:500,:,:,:]
+    mirroredPicValidation[125:150,:,:,:] = mirroredPic[575:600,:,:,:]
+    mirroredPicValidation[150:175,:,:,:] = mirroredPic[675:700,:,:,:]
+    mirroredPicValidation[175:200,:,:,:] = mirroredPic[775:800,:,:,:]
+    
+    GTmirroredPicValidation[0:25,:,:] = GTmirroredPic[75:100,:,:]
+    GTmirroredPicValidation[25:50,:,:] = GTmirroredPic[175:200,:,:]
+    GTmirroredPicValidation[50:75,:,:] = GTmirroredPic[275:300,:,:]
+    GTmirroredPicValidation[75:100,:,:] = GTmirroredPic[375:400,:,:]
+    GTmirroredPicValidation[100:125,:,:] = GTmirroredPic[475:500,:,:]
+    GTmirroredPicValidation[125:150,:,:] = GTmirroredPic[575:600,:,:]
+    GTmirroredPicValidation[150:175,:,:] = GTmirroredPic[675:700,:,:]
+    GTmirroredPicValidation[175:200,:,:] = GTmirroredPic[775:800,:,:]
+    
         
     
     #%%
@@ -1336,17 +1384,28 @@ if __name__ == '__main__':
     #augmentedImages[0:800,:,:,:] = mirroredPic[0:,:,:,:]
     #augmentedImages[800:1600,:,:,:] = mirroredPicsNoisy[0:,:,:,:]
     
+    #import sys
+    
     allImages = np.zeros((2,mirroredPic.shape[0],mirroredPic.shape[1],mirroredPic.shape[2], mirroredPic.shape[3] ))
     
-    allImages[0,:,:,:,:] = mirroredPic
-    allImages[1,:,:,:,0] = GTmirroredPic
-    allImages[1,:,:,:,1] = GTmirroredPic
-    allImages[1,:,:,:,2] = GTmirroredPic
+    allImages[0,0:600,:,:,:] = mirroredPicTraining
+    allImages[0,600:,:,:,:] = mirroredPicValidation
+    
+    
+    allImages[1,0:600,:,:,0] = GTmirroredPicTraining
+    allImages[1,0:600,:,:,1] = GTmirroredPicTraining
+    allImages[1,0:600,:,:,2] = GTmirroredPicTraining
+    
+    allImages[1,600:,:,:,0] = GTmirroredPicValidation
+    allImages[1,600:,:,:,1] = GTmirroredPicValidation
+    allImages[1,600:,:,:,2] = GTmirroredPicValidation
     
     allImages =  allImages.astype(np.uint8)
     
-    print(allImages.shape)
-    
+    #print(allImages.shape)
+    #np.save('thepics.npy', allImages)
+    #print('done')
+    #sys.exit()
     
     #%%
     
@@ -1360,7 +1419,7 @@ if __name__ == '__main__':
         print('now working on ', goodPictureCounter[0],'th picture in goodPictues set')
         
         
-        order = np.arange(allImages.shape[1])
+        order = np.arange(600)
         np.random.shuffle(order)
         
         
@@ -1372,7 +1431,7 @@ if __name__ == '__main__':
         
         while( not (b[0] == 1 and r[0] == 1)):
             
-            count =( count + 1 )% allImages.shape[1]
+            count =( count + 1 )% 600
             
             
             
@@ -1438,12 +1497,12 @@ if __name__ == '__main__':
         rsltRight = findFittingPart4( allImages[1,index,:,:,0], [y1, y2], [1,0], False)
         #print('nr',  index, 'res',rsltRight,'looking for match',[y1, y2])
         
-        order = np.arange(allImages.shape[1])
+        order = np.arange(600)
         np.random.shuffle(order)
         
         
         while(imagenr < allImages.shape[1]-1 and rsltRight == [-1,-1]):
-            imagenr =(imagenr + 1 )% allImages.shape[1]
+            imagenr =(imagenr + 1 )% 600
             index = order[imagenr]
             #plt.imshow(allImages[1,index,: , :, 0])
             #plt.show()
@@ -1460,12 +1519,12 @@ if __name__ == '__main__':
         rslt = findFittingPart4( allImages[1,index,:,:,0], [x1, x2], [0,0], False)
         #print('nr',  index, 'res',rslt,'looking for match',[x1, x2])
         
-        order = np.arange(allImages.shape[1])
+        order = np.arange(600)
         np.random.shuffle(order)
         
         
         while(imagenr < allImages.shape[1]-1 and rslt == [-1,-1]):
-            imagenr =(imagenr + 1 )% allImages.shape[1]
+            imagenr =(imagenr + 1 )% 600
             index = order[imagenr]
             #plt.imshow(allImages[1,index,: , :, 0])
             #plt.show()
@@ -1547,16 +1606,20 @@ if __name__ == '__main__':
         
         p0 = Process(target=find_last_part_multiproc, args=(allImages[1,0:50,:,:,0], [horizontalCoords, verticalCoords], 0, queue, False))
         p1 = Process(target=find_last_part_multiproc, args=(allImages[1,50:100,:,:,0], [horizontalCoords, verticalCoords], 1, queue, False))
-        
+        p2 = Process(target=find_last_part_multiproc, args=(allImages[1,100:150,:,:,0], [horizontalCoords, verticalCoords], 2, queue, False))
+
         p0.start()
         p1.start()
+        p2.start()
         
-        while( p0.is_alive() and p1.is_alive()):
+        while( p0.is_alive() and p1.is_alive() and p2.is_alive()):
             sleep(3)
         
         
-        p0.join
-        p1.join
+        p0.join()
+        p1.join()
+        p2.join()
+
         try:
             bottomLeftRslt = queue.get(True,0.5)
         except:
