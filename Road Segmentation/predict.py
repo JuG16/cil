@@ -251,6 +251,7 @@ def extract_test_data(parent_dir):
         print ('Loading ' + filepath)
         img = mpimg.imread(filepath)
         imgs.append(img)
+        
 
 
     num_images = len(imgs)

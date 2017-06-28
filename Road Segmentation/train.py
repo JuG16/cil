@@ -86,15 +86,39 @@ def extract_data(filename, start, num_images, train):
 
     return numpy.asarray(data)
 
-def extract_data_and_labels_from_augmentation(filename):
+def extract_data_and_labels_from_augmentation(filename,train):
     """Extract the images into a 4D tensor [image index, y, x, channels].
     Values are rescaled from [0, 255] down to [-0.5, 0.5].
     """
     imgs = []
+    gt_imgs = []
     pictures = np.load(filename)
 
-    imgs = pictures[0]
-    gt_imgs = pictures[1]
+    for i in range(pictures.shape[1]):
+        print("Importing " + str(i) + " augmentation picture")
+        img = pictures[0,i]
+        if np.sum(img) == 0:
+            break
+        gt_img = pictures[1,i]
+        imgs.append(img)
+        gt_imgs.append(gt_img[:,:,0])
+        if train:
+            for y in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                for x in range(0, IMG_PATCH_SIZE, int(IMG_PATCH_SIZE /shift)):
+                    if y == 0 and x == 0:
+                        continue
+                    #shift image
+                    img_shifted = np.zeros((gt_img.shape[0]-IMG_PATCH_SIZE,gt_img.shape[1]-IMG_PATCH_SIZE))
+                    for ii in range(gt_img.shape[0]-IMG_PATCH_SIZE):
+                        for jj in range(gt_img.shape[1]-IMG_PATCH_SIZE):
+                            img_shifted[ii,jj] = gt_img[ii+y, jj+x, 0]
+                    gt_imgs.append(img_shifted)
+
+                    img_shifted = np.zeros((img.shape[0]-IMG_PATCH_SIZE,img.shape[1]-IMG_PATCH_SIZE, img.shape[2]))
+                    for ii in range(img.shape[0]-IMG_PATCH_SIZE):
+                        for jj in range(img.shape[1]-IMG_PATCH_SIZE):
+                            img_shifted[ii,jj] = img[ii+y, jj+x]
+                    imgs.append(img_shifted)
     num_images = len(imgs)
     IMG_WIDTH = imgs[0].shape[0]
     IMG_HEIGHT = imgs[0].shape[1]
@@ -111,7 +135,7 @@ def extract_data_and_labels_from_augmentation(filename):
         
 # Assign a label to a patch v
 def value_to_class(v):
-    foreground_threshold = 0.15 # percentage of pixels > 1 required to assign a foreground label to a patch
+    foreground_threshold = 0.1 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = numpy.sum(v)
     if df > foreground_threshold:
         return [0, 1]
@@ -538,6 +562,7 @@ evaluate_every_step = 400
 checkpoint_every_step = 400
 log_dir = './tmp/'
 dropout_rate = 0.9 #0.9
+balance = True
 
 
 PIXEL_DEPTH = 255
@@ -572,6 +597,12 @@ if __name__ == '__main__':
         train_labels = extract_labels(train_labels_filename, 1, 74, True)
         test_labels = extract_labels(train_labels_filename, 76, 24, False)
 
+
+        # print("Importing augmentation picture")
+        # augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures.npy", True)
+        # train_data = np.concatenate((train_data, augmentation_data))
+        # train_labels = np.concatenate((train_labels, augmentation_labels))
+
         test_labels_number_not_array = []
         for i in range(len(test_labels)):
             if test_labels[i][0] == 1:
@@ -583,9 +614,9 @@ if __name__ == '__main__':
         train_data = extract_data(train_data_filename,1, 100, True)
         train_labels = extract_labels(train_labels_filename, 1, 100, True)
 
-        for i in range(1,1):
+        for i in range(1,3):
             print("Importing augmentation pictures " + str(i))
-            augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures" +str(i)+ ".npy")
+            augmentation_data, augmentation_labels = extract_data_and_labels_from_augmentation("pictures" +str(i)+ ".npy", True)
             train_data = np.concatenate((train_data, augmentation_data))
             train_labels = np.concatenate((train_labels, augmentation_labels))
 
@@ -605,8 +636,9 @@ if __name__ == '__main__':
     new_indices = idx0[0:min_c] + idx1[0:min_c]
     print (len(new_indices))
     print (train_data.shape)
-    #train_data = train_data[new_indices,:,:,:]
-    #train_labels = train_labels[new_indices]
+    if balance:
+        train_data = train_data[new_indices,:,:,:]
+        train_labels = train_labels[new_indices]
 
 
     train_size = train_labels.shape[0]
